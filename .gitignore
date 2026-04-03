@@ -1,0 +1,19 @@
+# Python env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Data & Models
+data/raw/
+models/*.pkl
+
+# OS generated files
+.DS_Store
