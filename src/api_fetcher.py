@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import time
 import os
 import glob
@@ -12,6 +12,9 @@ class APIFetcher:
         self.lon_min, self.lon_max = 106.33, 106.77
         self.lats = np.linspace(self.lat_min, self.lat_max, 20)
         self.lons = np.linspace(self.lon_min, self.lon_max, 20)
+        
+        # Define explicit GMT+7 timezone
+        self.tz_gmt7 = timezone(timedelta(hours=7))
         
         self.dirs = {
             'historic': 'data/raw/historic',
@@ -54,11 +57,11 @@ class APIFetcher:
     def fetch_current_grid(self):
         coords = [(round(lat, 5), round(lon, 5)) for lat in self.lats for lon in self.lons]
         records = []
-        now = datetime.now()
+        now = datetime.now(self.tz_gmt7)
         fetch_time = now.strftime('%Y-%m-%d %H:%M:%S')
         file_timestamp = now.strftime('%Y%m%d_%H%M')
         
-        print(f"[{fetch_time}] Fetching current grid data using with batching...")
+        print(f"[{fetch_time}] Fetching current grid data with batching...")
         
         chunk_size = 50
         for i in range(0, len(coords), chunk_size):
@@ -66,11 +69,13 @@ class APIFetcher:
             lat_str = ",".join([str(c[0]) for c in chunk])
             lon_str = ",".join([str(c[1]) for c in chunk])
             
+            # Added &timezone=Asia%2FJakarta to match GMT+7
             url = (
                 f"https://api.open-meteo.com/v1/forecast?"
                 f"latitude={lat_str}&longitude={lon_str}"
                 f"&current=temperature_2m,relative_humidity_2m,cloud_cover,"
                 f"surface_pressure,wind_speed_10m,rain"
+                f"&timezone=Asia%2FJakarta"
             )
             
             try:
@@ -111,7 +116,7 @@ class APIFetcher:
     def fetch_future_grid(self):
         coords = [(round(lat, 5), round(lon, 5)) for lat in self.lats for lon in self.lons]
         records = []
-        now = datetime.now()
+        now = datetime.now(self.tz_gmt7)
         fetch_time = now.strftime('%Y-%m-%d %H:%M:%S')
         file_timestamp = now.strftime('%Y%m%d_%H%M')
         
@@ -123,11 +128,13 @@ class APIFetcher:
             lat_str = ",".join([str(c[0]) for c in chunk])
             lon_str = ",".join([str(c[1]) for c in chunk])
             
+            # Added &timezone=Asia%2FJakarta to match GMT+7
             url = (
                 f"https://api.open-meteo.com/v1/forecast?"
                 f"latitude={lat_str}&longitude={lon_str}"
                 f"&hourly=temperature_2m,relative_humidity_2m,cloud_cover,"
                 f"surface_pressure,wind_speed_10m,rain"
+                f"&timezone=Asia%2FJakarta"
             )
             
             try:
@@ -148,7 +155,7 @@ class APIFetcher:
                         records.append(df_temp)
                 time.sleep(3)
             except Exception as e:
-                print(f"Skipping future batch {i//chunk_size + 1} due to persistent error.")
+                print(f"Skipping future batch {i//chunk_size + 1} due to persistent error: {e}")
 
         df = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
         if df.empty:
