@@ -1,15 +1,20 @@
-# Python env
-__pycache__/
-*.py[cod]
+# Python environments
 .venv/
+.env/
 venv/
 env/
+ml_env/
+__pycache__/
+*.py[cod]
+*$py.class
 
-# Streamlit
+# Streamlit/Jupyter caches
 .streamlit/
+.ipynb_checkpoints/
 
-# Jupyter
-.ipynb_checkpoints
+# Data files
+data/raw/
+data/processed/
 
-# OS generated files
-.DS_Store
+# Model files
+models/
