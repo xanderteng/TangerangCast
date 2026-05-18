@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}RainMap{% endblock %}</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Base styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}" />
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar__brand">
+      <span class="navbar__icon">⛈</span>
+      <span class="navbar__title">RainMap <em>Jabodetabek</em></span>
+    </div>
+    <div class="navbar__meta" id="fetch-badge">—</div>
+  </nav>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+    // Inject fetch time into navbar badge
+    async function loadFetchBadge() {
+      if (document.getElementById("map")) return;
+      try {
+        const r = await fetch("/api/current");
+        const d = await r.json();
+        document.getElementById("fetch-badge").textContent = "Fetch: " + (d.fetch_time || "-");
+      } catch {}
+    }
+    loadFetchBadge();
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

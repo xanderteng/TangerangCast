@@ -1,0 +1,56 @@
+/* ============================================================
+   base.css — CSS custom properties, reset, typography
+   ============================================================ */
+
+:root {
+  /* Palette */
+  --clr-bg:        #0b0f1a;
+  --clr-surface:   #131929;
+  --clr-surface2:  #1c2540;
+  --clr-border:    #2a3558;
+  --clr-text:      #e4eaf7;
+  --clr-muted:     #6b7fa8;
+  --clr-accent:    #4f8ef7;
+
+  /* Rain / No-rain */
+  --clr-rain:      #3B82F6;
+  --clr-dry:       #F59E0B;
+
+  /* Typography */
+  --font-mono: "Space Mono", monospace;
+  --font-body: "DM Sans", sans-serif;
+
+  /* Sizing */
+  --navbar-h: 52px;
+  --toolbar-h: 52px;
+  --radius: 8px;
+  --radius-lg: 14px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--clr-accent);
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.hidden { display: none !important; }

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Live Rain Map{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}" />
+{% endblock %}
+
+{% block content %}
+
+<div class="map-toolbar">
+  <div class="map-mode-switcher">
+    <button class="mode-btn active" id="btn-current" onclick="switchMode('current')">Current</button>
+    <button class="mode-btn" id="btn-forecast" onclick="switchMode('forecast')">Forecast</button>
+    <button class="mode-btn" id="btn-historic" onclick="switchMode('historic')">Historic</button>
+  </div>
+
+  <div class="map-style-switcher" aria-label="Map style">
+    <button class="style-btn active" id="style-dark" onclick="switchMapStyle('dark')">Dark</button>
+    <button class="style-btn" id="style-light" onclick="switchMapStyle('light')">Light</button>
+    <button class="style-btn" id="style-colorful" onclick="switchMapStyle('colorful')">Colorful</button>
+  </div>
+
+  <div class="time-controls hidden" id="time-controls">
+    <button class="time-nav" id="btn-prev" onclick="stepTime(-1)">&lsaquo;</button>
+    <select class="time-select" id="time-select" onchange="selectTime(this.value)"></select>
+    <button class="time-nav" id="btn-next" onclick="stepTime(1)">&rsaquo;</button>
+  </div>
+
+  <div class="stats-pill" id="stats-pill">
+    <span id="stat-rain">Rain -</span>
+    <span class="divider">|</span>
+    <span id="stat-temp">Temp -</span>
+    <span class="divider">|</span>
+    <span id="stat-humid">Hum -</span>
+  </div>
+</div>
+
+<div class="map-legend">
+  <div class="legend-item"><span class="dot rain"></span> Rain</div>
+  <div class="legend-item"><span class="dot dry"></span> Clear</div>
+</div>
+
+<div id="map"></div>
+
+<div class="detail-panel hidden" id="detail-panel">
+  <button class="detail-close" onclick="closePanel()">x</button>
+  <h3 class="detail-title">Point Detail</h3>
+  <div class="detail-grid" id="detail-grid"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}
