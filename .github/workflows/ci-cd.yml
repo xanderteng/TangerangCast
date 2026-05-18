@@ -3,7 +3,7 @@ name: TangerangCast CI/CD Pipeline
 on:
   push:
     branches:
-      - '**'
+      - main
     paths-ignore:
       - 'README.md'
       - 'notebook/**'
