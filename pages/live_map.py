@@ -95,7 +95,11 @@ def _build_payload(csv_path: str, polygon: list[list[float]]) -> dict:
     if "timestamp" not in df.columns:
         df["timestamp"] = df["fetch_time"]
 
-    fetch_time = df["fetch_time"].dropna().iloc[0] if not df["fetch_time"].dropna().empty else None
+    fetch_time = (
+        df["fetch_time"].dropna().iloc[0]
+        if not df["fetch_time"].dropna().empty
+        else None
+    )
 
     points = []
     for _, row in df.iterrows():
@@ -174,7 +178,11 @@ def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
     data = {}
 
     # Extract fetch_time from the first valid entry
-    fetch_time = df["fetch_time"].dropna().iloc[0] if not df["fetch_time"].dropna().empty else None
+    fetch_time = (
+        df["fetch_time"].dropna().iloc[0]
+        if not df["fetch_time"].dropna().empty
+        else None
+    )
 
     # Group by timestamp (Forecast_Time)
     for timestamp, group in df.groupby("timestamp"):
@@ -216,17 +224,27 @@ def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
     }
 
 
-def _inject_and_render(payload: dict, geojson_data: dict, historic_payloads: dict, forecast_payloads: dict) -> None:
+def _inject_and_render(
+    payload: dict, geojson_data: dict, historic_payloads: dict, forecast_payloads: dict
+) -> None:
     """Read the standalone HTML, inject all payloads & border GeoJSON, and render via Streamlit."""
     with open(_STANDALONE_HTML, encoding="utf-8") as f:
         html = f.read()
 
     injection_script = (
         "<script>\n"
-        "window.INJECTED_CURRENT_DATA = " + json.dumps(payload, ensure_ascii=False) + ";\n"
-        "window.INJECTED_HISTORIC_DATA = " + json.dumps(historic_payloads, ensure_ascii=False) + ";\n"
-        "window.INJECTED_FORECAST_DATA = " + json.dumps(forecast_payloads, ensure_ascii=False) + ";\n"
-        "window.TANGERANG_BORDER = " + json.dumps(geojson_data, ensure_ascii=False) + ";\n"
+        "window.INJECTED_CURRENT_DATA = "
+        + json.dumps(payload, ensure_ascii=False)
+        + ";\n"
+        "window.INJECTED_HISTORIC_DATA = "
+        + json.dumps(historic_payloads, ensure_ascii=False)
+        + ";\n"
+        "window.INJECTED_FORECAST_DATA = "
+        + json.dumps(forecast_payloads, ensure_ascii=False)
+        + ";\n"
+        "window.TANGERANG_BORDER = "
+        + json.dumps(geojson_data, ensure_ascii=False)
+        + ";\n"
         "</script>\n</head>"
     )
     html = html.replace("</head>", injection_script, 1)
