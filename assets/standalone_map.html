@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Rain Map</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ============================================================
+       base.css — CSS custom properties, reset, typography
+       ============================================================ */
+
+    :root {
+      /* Palette */
+      --clr-bg:        #0b0f1a;
+      --clr-surface:   #131929;
+      --clr-surface2:  #1c2540;
+      --clr-border:    #2a3558;
+      --clr-text:      #e4eaf7;
+      --clr-muted:     #6b7fa8;
+      --clr-accent:    #4f8ef7;
+
+      /* Rain / No-rain */
+      --clr-rain:      #3B82F6;
+      --clr-dry:       #F59E0B;
+
+      /* Typography */
+      --font-mono: "Space Mono", monospace;
+      --font-body: "DM Sans", sans-serif;
+
+      /* Sizing */
+      --navbar-h: 52px;
+      --toolbar-h: 52px;
+      --radius: 8px;
+      --radius-lg: 14px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--clr-bg);
+      color: var(--clr-text);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: var(--clr-accent);
+      text-decoration: none;
+    }
+
+    button {
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ============================================================
+       navbar.css
+       ============================================================ */
+
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--navbar-h);
+      background: var(--clr-surface);
+      border-bottom: 1px solid var(--clr-border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 24px;
+      z-index: 1000;
+      backdrop-filter: blur(8px);
+    }
+
+    .navbar__brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .navbar__icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .navbar__title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--clr-text);
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    .navbar__title em {
+      font-style: normal;
+      color: var(--clr-accent);
+    }
+
+    .navbar__links {
+      display: flex;
+      gap: 4px;
+      margin-left: 12px;
+    }
+
+    .navbar__links a {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--clr-muted);
+      padding: 5px 12px;
+      border-radius: var(--radius);
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .navbar__links a:hover,
+    .navbar__links a.active {
+      background: var(--clr-surface2);
+      color: var(--clr-text);
+    }
+
+    .navbar__meta {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--clr-muted);
+      white-space: nowrap;
+    }
+
+    .main-content {
+      padding-top: var(--navbar-h);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ============================================================
+       map.css — toolbar, legend, map container, detail panel
+       ============================================================ */
+
+    /* ── Toolbar ─────────────────────────────────────────────── */
+    .map-toolbar {
+      height: var(--toolbar-h);
+      background: var(--clr-surface);
+      border-bottom: 1px solid var(--clr-border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 16px;
+      z-index: 900;
+      flex-shrink: 0;
+    }
+
+    .map-mode-switcher {
+      display: flex;
+      background: var(--clr-bg);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .map-style-switcher {
+      display: flex;
+      background: var(--clr-bg);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .mode-btn,
+    .style-btn {
+      background: transparent;
+      border: none;
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--clr-muted);
+      letter-spacing: 0.04em;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .mode-btn.active,
+    .style-btn.active {
+      background: var(--clr-accent);
+      color: #fff;
+    }
+
+    /* ── Forecast time nav ───────────────────────────────────── */
+    .time-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .time-nav {
+      background: var(--clr-surface2);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius);
+      color: var(--clr-text);
+      width: 28px;
+      height: 28px;
+      font-size: 16px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    .time-nav:hover { background: var(--clr-border); }
+
+    .time-select {
+      background: var(--clr-surface2);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--clr-text);
+      height: 28px;
+      min-width: 210px;
+      max-width: 260px;
+      padding: 0 8px;
+    }
+
+    /* ── Stats pill ──────────────────────────────────────────── */
+    .stats-pill {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--clr-bg);
+      border: 1px solid var(--clr-border);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--clr-text);
+      white-space: nowrap;
+    }
+
+    .stats-pill .divider { color: var(--clr-border); }
+
+    /* ── Map container ───────────────────────────────────────── */
+    #map {
+      flex: 1;
+      width: 100%;
+      z-index: 1;
+    }
+
+    /* Override Leaflet background while tiles load */
+    .leaflet-container { background: var(--leaflet-bg, #0b1220); }
+
+    /* ── Legend ──────────────────────────────────────────────── */
+    .map-legend {
+      position: absolute;
+      bottom: 28px;
+      left: 16px;
+      z-index: 800;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--clr-surface);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      pointer-events: none;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--clr-text);
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot.rain { background: var(--clr-rain); box-shadow: 0 0 6px var(--clr-rain); }
+    .dot.dry  { background: var(--clr-dry);  box-shadow: 0 0 6px var(--clr-dry); }
+
+    /* ── Detail panel ────────────────────────────────────────── */
+    .detail-panel {
+      position: absolute;
+      top: calc(var(--navbar-h) + var(--toolbar-h) + 12px);
+      right: 12px;
+      width: 260px;
+      background: var(--clr-surface);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      z-index: 900;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .detail-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: transparent;
+      border: none;
+      color: var(--clr-muted);
+      font-size: 14px;
+      transition: color 0.15s;
+    }
+    .detail-close:hover { color: var(--clr-text); }
+
+    .detail-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--clr-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .detail-cell {
+      background: var(--clr-surface2);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+    }
+
+    .detail-cell__label {
+      font-size: 10px;
+      color: var(--clr-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
+    }
+
+    .detail-cell__value {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--clr-text);
+    }
+
+    .detail-cell__value.compact {
+      font-size: 10px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-cell__unit {
+      font-size: 10px;
+      color: var(--clr-muted);
+      font-family: var(--font-body);
+    }
+
+    /* Rain status cell spans full width */
+    .detail-cell.rain-status {
+      grid-column: 1 / -1;
+      text-align: center;
+    }
+
+    .rain-badge {
+      display: inline-block;
+      padding: 3px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    .rain-badge.raining {
+      background: rgba(59,130,246,0.15);
+      color: var(--clr-rain);
+      border: 1px solid var(--clr-rain);
+    }
+
+    .rain-badge.clear {
+      background: rgba(245,158,11,0.12);
+      color: var(--clr-dry);
+      border: 1px solid var(--clr-dry);
+    }
+
+    /* Leaflet custom circle popup tweak */
+    .leaflet-popup-content-wrapper {
+      background: var(--clr-surface) !important;
+      border: 1px solid var(--clr-border) !important;
+      color: var(--clr-text) !important;
+      border-radius: var(--radius) !important;
+      font-family: var(--font-body);
+      font-size: 12px;
+      box-shadow: none !important;
+    }
+    .leaflet-popup-tip { background: var(--clr-surface) !important; }
+    .leaflet-popup-close-button { color: var(--clr-muted) !important; }
+
+    .leaflet-tooltip {
+      background: var(--clr-surface) !important;
+      border: 1px solid var(--clr-border) !important;
+      color: var(--clr-text) !important;
+      border-radius: var(--radius) !important;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25) !important;
+      font-family: var(--font-body);
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .map-toolbar {
+        height: auto;
+        min-height: var(--toolbar-h);
+        flex-wrap: wrap;
+        padding: 10px 12px;
+        gap: 10px;
+      }
+
+      .stats-pill {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar__brand">
+      <span class="navbar__icon">⛈</span>
+      <span class="navbar__title">RainMap <em>Jabodetabek</em></span>
+    </div>
+    <div class="navbar__meta" id="fetch-badge">—</div>
+  </nav>
+
+  <main class="main-content">
+
+    <div class="map-toolbar">
+      <div class="map-mode-switcher">
+        <button class="mode-btn active" id="btn-current" onclick="switchMode('current')">Current</button>
+        <button class="mode-btn" id="btn-forecast" onclick="switchMode('forecast')">Forecast</button>
+        <button class="mode-btn" id="btn-historic" onclick="switchMode('historic')">Historic</button>
+      </div>
+
+      <div class="map-style-switcher" aria-label="Map style">
+        <button class="style-btn active" id="style-dark" onclick="switchMapStyle('dark')">Dark</button>
+        <button class="style-btn" id="style-light" onclick="switchMapStyle('light')">Light</button>
+        <button class="style-btn" id="style-colorful" onclick="switchMapStyle('colorful')">Colorful</button>
+      </div>
+
+      <div class="time-controls hidden" id="time-controls">
+        <button class="time-nav" id="btn-prev" onclick="stepTime(-1)">&lsaquo;</button>
+        <select class="time-select" id="time-select" onchange="selectTime(this.value)"></select>
+        <button class="time-nav" id="btn-next" onclick="stepTime(1)">&rsaquo;</button>
+      </div>
+
+      <div class="stats-pill" id="stats-pill">
+        <span id="stat-rain">Rain -</span>
+        <span class="divider">|</span>
+        <span id="stat-temp">Temp -</span>
+        <span class="divider">|</span>
+        <span id="stat-humid">Hum -</span>
+      </div>
+    </div>
+
+    <div class="map-legend">
+      <div class="legend-item"><span class="dot rain"></span> Rain</div>
+      <div class="legend-item"><span class="dot dry"></span> Clear</div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="detail-panel hidden" id="detail-panel">
+      <button class="detail-close" onclick="closePanel()">x</button>
+      <h3 class="detail-title">Point Detail</h3>
+      <div class="detail-grid" id="detail-grid"></div>
+    </div>
+
+  </main>
+
+  <script>
+    /* ============================================================
+       map.js - Leaflet map logic for current, forecast, historic
+       Modified: loadCurrent() uses window.INJECTED_CURRENT_DATA
+       ============================================================ */
+
+    const MAP_CENTER = [-6.2, 106.55];
+    const MAP_ZOOM = 11;
+    const RAIN_CLR = "#3B82F6";
+    const DRY_CLR = "#F59E0B";
+
+    const MAP_STYLES = {
+      dark: {
+        url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+        background: "#0b1220",
+      },
+      light: {
+        url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+        background: "#eef2f6",
+      },
+      colorful: {
+        url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+        background: "#d9edf2",
+      },
+    };
+
+    const DATA_SOURCES = {
+      current: {
+        url: "/api/current",
+      },
+      forecast: {
+        timesUrl: "/api/forecast/times",
+        pointUrl: (time) => `/api/forecast/${encodeURIComponent(time)}`,
+      },
+      historic: {
+        timesUrl: "/api/historic/times",
+        pointUrl: (time) => `/api/historic/${encodeURIComponent(time)}`,
+      },
+    };
+
+    const map = L.map("map", {
+      center: MAP_CENTER,
+      zoom: MAP_ZOOM,
+      zoomControl: false,
+    });
+
+    let tileLayer = null;
+    let pointLayer = null;
+    let activeMode = "current";
+    let activeStyle = "dark";
+    let activeTimes = [];
+    let activeTimeIdx = 0;
+
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    switchMapStyle(activeStyle);
+
+    if (window.TANGERANG_BORDER) {
+      // Convert GeoJSON [lng, lat] to Leaflet [lat, lng]
+      const coords = window.TANGERANG_BORDER.features[0].geometry.coordinates[0];
+      const latLngs = coords.map(c => [c[1], c[0]]);
+
+      // Create an inverted polygon covering the world except the Tangerang hole
+      const outerWorld = [
+        [-90, -180],
+        [-90, 180],
+        [90, 180],
+        [90, -180],
+        [-90, -180]
+      ];
+
+      // Render the visual dark mask overlay
+      L.polygon([outerWorld, latLngs], {
+        color: "#0b0f1a",
+        weight: 0,
+        fillColor: "#0b0f1a",
+        fillOpacity: 0.78,
+        interactive: false
+      }).addTo(map);
+
+      // Render a sleek glowing border for Tangerang
+      L.polygon(latLngs, {
+        color: "#4f8ef7",
+        weight: 2,
+        fillOpacity: 0,
+        dashArray: "4, 4",
+        interactive: false
+      }).addTo(map);
+
+      // Restrict map camera and pan bounds to Tangerang
+      const bounds = L.latLngBounds(latLngs);
+      map.setMaxBounds(bounds.pad(0.15));
+      map.fitBounds(bounds);
+    }
+
+    switchMode("current");
+
+    function switchMapStyle(styleName) {
+      const style = MAP_STYLES[styleName] || MAP_STYLES.dark;
+      activeStyle = styleName;
+
+      if (tileLayer) {
+        map.removeLayer(tileLayer);
+      }
+
+      tileLayer = L.tileLayer(style.url, {
+        attribution: style.attribution,
+        maxZoom: 19,
+      }).addTo(map);
+
+      document.querySelectorAll(".style-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.id === `style-${styleName}`);
+      });
+
+      document.documentElement.style.setProperty("--leaflet-bg", style.background);
+    }
+
+    function fmt(value, fallback = "-") {
+      return value === null || value === undefined || Number.isNaN(value) ? fallback : value;
+    }
+
+    function fmtCoord(value) {
+      return typeof value === "number" ? value.toFixed(3) : fmt(value);
+    }
+
+    function formatTimeLabel(value) {
+      if (!value) return "-";
+      return value.replace("T", " ");
+    }
+
+    function rainColor(point) {
+      if (point.rain_label === 1) return RAIN_CLR;
+      if (point.rain_label === 0) return DRY_CLR;
+      return point.cloud_cover > 60 ? RAIN_CLR : DRY_CLR;
+    }
+
+    function rainText(point) {
+      if (point.rain_label === 1) return "Rain";
+      if (point.rain_label === 0) return "Clear";
+      return point.cloud_cover > 60 ? "Possible rain" : "Clear";
+    }
+
+    function makeCircle(point, mode) {
+      const color = rainColor(point);
+      const circle = L.circleMarker([point.latitude, point.longitude], {
+        radius: 5,
+        fillColor: color,
+        color,
+        weight: 0,
+        fillOpacity: 0.78,
+      });
+
+      circle.bindTooltip(`
+        <strong>${rainText(point)}</strong><br>
+        Time: ${formatTimeLabel(point.timestamp)}<br>
+        ${fmt(point.latitude)}, ${fmt(point.longitude)}
+      `, { sticky: true });
+
+      circle.on("click", () => openPanel(point, mode));
+      return circle;
+    }
+
+    function drawPoints(payload, mode) {
+      if (pointLayer) {
+        map.removeLayer(pointLayer);
+      }
+
+      pointLayer = L.layerGroup();
+      payload.points.forEach((point) => makeCircle(point, mode).addTo(pointLayer));
+      pointLayer.addTo(map);
+
+      updateStats(payload.points, mode);
+      updateDatasetMeta(payload);
+    }
+
+    function updateDatasetMeta(payload) {
+      const meta = document.getElementById("fetch-badge");
+      if (!meta) return;
+
+      const fetchTime = payload.fetch_time || "-";
+      const timestamp = payload.timestamp && payload.timestamp !== payload.fetch_time
+        ? ` | Selected: ${formatTimeLabel(payload.timestamp)}`
+        : "";
+      meta.textContent = `Fetch: ${fetchTime}${timestamp}`;
+    }
+
+    function updateStats(points, mode) {
+      const total = points.length || 1;
+      const rainCount = points.filter((p) => rainText(p) !== "Clear").length;
+      const avgTemp = points.reduce((sum, p) => sum + Number(p.temperature || 0), 0) / total;
+      const avgHumid = points.reduce((sum, p) => sum + Number(p.humidity || 0), 0) / total;
+
+      document.getElementById("stat-rain").textContent =
+        mode === "forecast" ? `Points ${points.length}` : `Rain ${rainCount}/${points.length}`;
+      document.getElementById("stat-temp").textContent = `Temp ${avgTemp.toFixed(1)} C`;
+      document.getElementById("stat-humid").textContent = `Hum ${avgHumid.toFixed(0)}%`;
+    }
+
+    function openPanel(point, mode) {
+      const panel = document.getElementById("detail-panel");
+      const grid = document.getElementById("detail-grid");
+      const showRain = mode !== "forecast" || point.rain_label !== null;
+      const rainHTML = showRain
+        ? `<div class="detail-cell rain-status">
+             <div class="detail-cell__label">Rain Status</div>
+             <span class="rain-badge ${rainText(point) === "Clear" ? "clear" : "raining"}">
+               ${rainText(point)}
+             </span>
+           </div>`
+        : "";
+
+      grid.innerHTML = `
+        ${rainHTML}
+        <div class="detail-cell">
+          <div class="detail-cell__label">Timestamp</div>
+          <div class="detail-cell__value compact">${formatTimeLabel(point.timestamp)}</div>
+        </div>
+        <div class="detail-cell">
+          <div class="detail-cell__label">Fetch Time</div>
+          <div class="detail-cell__value compact">${fmt(point.fetch_time)}</div>
+        </div>
+        <div class="detail-cell">
+          <div class="detail-cell__label">Temperature</div>
+          <div class="detail-cell__value">${fmt(point.temperature)}<span class="detail-cell__unit"> C</span></div>
+        </div>
+        <div class="detail-cell">
+          <div class="detail-cell__label">Humidity</div>
+          <div class="detail-cell__value">${fmt(point.humidity)}<span class="detail-cell__unit"> %</span></div>
+        </div>
+        <div class="detail-cell">
+          <div class="detail-cell__label">Wind</div>
+          <div class="detail-cell__value">${fmt(point.wind_speed)}<span class="detail-cell__unit"> km/h</span></div>
+        </div>
+        <div class="detail-cell">
+          <div class="detail-cell__label">Cloud</div>
+          <div class="detail-cell__value">${fmt(point.cloud_cover)}<span class="detail-cell__unit"> %</span></div>
+        </div>
+        <div class="detail-cell">
+          <div class="detail-cell__label">Pressure</div>
+          <div class="detail-cell__value">${fmt(point.pressure)}<span class="detail-cell__unit"> hPa</span></div>
+        </div>
+        <div class="detail-cell">
+          <div class="detail-cell__label">Coordinate</div>
+          <div class="detail-cell__value compact">${fmtCoord(point.latitude)},<br>${fmtCoord(point.longitude)}</div>
+        </div>
+      `;
+
+      panel.classList.remove("hidden");
+    }
+
+    function closePanel() {
+      document.getElementById("detail-panel").classList.add("hidden");
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Request failed: ${url}`);
+      }
+      return res.json();
+    }
+
+    /* ── Data Injection Pattern ──────────────────────────────── */
+    /* loadCurrent() reads from window.INJECTED_CURRENT_DATA
+       instead of fetching from /api/current.                    */
+    function loadCurrent() {
+      if (window.INJECTED_CURRENT_DATA) {
+        drawPoints(window.INJECTED_CURRENT_DATA, "current");
+      } else {
+        console.warn("No injected current data found. Rendering empty map.");
+        drawPoints({ fetch_time: null, timestamp: null, points: [] }, "current");
+      }
+    }
+
+    function loadTimes(mode) {
+      if (mode === "historic") {
+        if (window.INJECTED_HISTORIC_DATA) {
+          activeTimes = window.INJECTED_HISTORIC_DATA.times || [];
+        } else {
+          activeTimes = [];
+        }
+      } else if (mode === "forecast") {
+        if (window.INJECTED_FORECAST_DATA) {
+          activeTimes = window.INJECTED_FORECAST_DATA.times || [];
+        } else {
+          activeTimes = [];
+        }
+      } else {
+        activeTimes = [];
+      }
+      activeTimeIdx = activeTimes.length ? activeTimes.length - 1 : 0;
+      renderTimeSelector();
+    }
+
+    function renderTimeSelector() {
+      const select = document.getElementById("time-select");
+      select.innerHTML = "";
+
+      if (!activeTimes.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No timestamps available";
+        select.appendChild(option);
+      } else {
+        activeTimes.forEach((time, idx) => {
+          const option = document.createElement("option");
+          option.value = String(idx);
+          option.textContent = formatTimeLabel(time);
+          option.selected = idx === activeTimeIdx;
+          select.appendChild(option);
+        });
+      }
+
+      updateTimeButtons();
+    }
+
+    function updateTimeButtons() {
+      document.getElementById("btn-prev").disabled = activeTimeIdx === 0 || !activeTimes.length;
+      document.getElementById("btn-next").disabled = activeTimeIdx === activeTimes.length - 1 || !activeTimes.length;
+      document.getElementById("time-select").value = activeTimes.length ? String(activeTimeIdx) : "";
+    }
+
+    function loadTimedModeAt(idx) {
+      if (!activeTimes.length) {
+        drawPoints({ fetch_time: null, timestamp: null, points: [] }, activeMode);
+        return;
+      }
+
+      activeTimeIdx = Math.max(0, Math.min(activeTimes.length - 1, idx));
+      updateTimeButtons();
+
+      const time = activeTimes[activeTimeIdx];
+      let payload = null;
+
+      if (activeMode === "historic" && window.INJECTED_HISTORIC_DATA) {
+        payload = window.INJECTED_HISTORIC_DATA.data[time];
+      } else if (activeMode === "forecast" && window.INJECTED_FORECAST_DATA) {
+        payload = window.INJECTED_FORECAST_DATA.data[time];
+      }
+
+      if (payload) {
+        drawPoints(payload, activeMode);
+      } else {
+        drawPoints({ fetch_time: null, timestamp: null, points: [] }, activeMode);
+      }
+    }
+
+    function switchMode(mode) {
+      activeMode = mode;
+      closePanel();
+
+      document.getElementById("btn-current").classList.toggle("active", mode === "current");
+      document.getElementById("btn-forecast").classList.toggle("active", mode === "forecast");
+      document.getElementById("btn-historic").classList.toggle("active", mode === "historic");
+      document.getElementById("time-controls").classList.toggle("hidden", mode === "current");
+
+      if (mode === "current") {
+        activeTimes = [];
+        loadCurrent();
+      } else {
+        loadTimes(mode);
+        loadTimedModeAt(activeTimeIdx);
+      }
+    }
+
+    function selectTime(indexValue) {
+      if (indexValue === "") return;
+      loadTimedModeAt(Number(indexValue));
+      closePanel();
+    }
+
+    function stepTime(delta) {
+      loadTimedModeAt(activeTimeIdx + delta);
+      closePanel();
+    }
+  </script>
+</body>
+</html>
