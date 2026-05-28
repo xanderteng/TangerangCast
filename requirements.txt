@@ -6,3 +6,6 @@ xgboost
 streamlit
 folium
 streamlit-folium
+lightgbm
+catboost
+joblib

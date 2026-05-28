@@ -18,8 +18,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all files to container
 COPY . .
 
+# Make entrypoint script executable
+RUN chmod +x entrypoint.sh
+
 # Tell Docker this app will use port 8501
 EXPOSE 8501
 
-# Command: Run fetcher in background (with &) and run Streamlit in foreground
-CMD python src/api_fetcher.py & streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+# Run the entrypoint script
+ENTRYPOINT ["./entrypoint.sh"]
