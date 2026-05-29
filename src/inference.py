@@ -1,119 +1,125 @@
 import os
-import joblib
+import glob
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
-from catboost import CatBoostClassifier
-
-FUTURE_PATH = "data/raw/future.csv"
-OUTPUT_PATH = "data/Final_Forecast_Results.csv"
-
-MODEL_DIR = "models"
-XGB_PATH = os.path.join(MODEL_DIR, "xgboost_model.joblib")
-LGB_PATH = os.path.join(MODEL_DIR, "lightgbm_model.joblib")
-CAT_PATH = os.path.join(MODEL_DIR, "catboost_model.joblib")
-
-WEIGHTS = {"xgb": 0.50, "lgb": 0.15, "cat": 0.35}
+import numpy as np
+import onnxruntime as rt
 
 
-# Only used if models are not found
-def train_and_save_models():
-    HISTORIC_PATH = "data/raw/historic.csv"
+def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
+    """Run decoupled ONNX models (XGB, LGBM, CatBoost) and Logistic Stacking Meta-model
 
-    os.makedirs(MODEL_DIR, exist_ok=True)
+    on preprocessed future grid forecasts, saving to data/processed/forecast/forecast_<timestamp>.csv.
+    """
+    if not os.path.exists(processed_file_path):
+        raise FileNotFoundError(
+            f"Preprocessed future file not found: {processed_file_path}"
+        )
 
-    if not os.path.exists(HISTORIC_PATH):
-        raise FileNotFoundError(f"Training data not found: {HISTORIC_PATH}")
+    # Define paths
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    models_dir = os.path.join(project_root, "models")
 
-    df_hist = pd.read_csv(HISTORIC_PATH)
+    xgb_path = os.path.join(models_dir, "xgb_model.onnx")
+    lgb_path = os.path.join(models_dir, "lgb_model.onnx")
+    cat_path = os.path.join(models_dir, "cat_model.onnx")
+    meta_path = os.path.join(models_dir, "meta_model.onnx")
 
-    TRAIN_COLUMNS_TO_DROP = ["Rain", "Timestamp", "Location", "Latitude", "Longitude"]
-    X = df_hist.drop(columns=TRAIN_COLUMNS_TO_DROP, errors="ignore")
-    y = df_hist["Rain"]
+    # Load preprocessed future data
+    df = pd.read_csv(processed_file_path)
 
-    X_train, X_val, y_train, y_val = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
-
-    xgb = XGBClassifier(random_state=42, eval_metric="logloss")
-    lgb = LGBMClassifier(random_state=42, verbose=-1)
-    cat = CatBoostClassifier(random_state=42, verbose=0, allow_writing_files=False)
-
-    xgb.fit(X_train, y_train)
-    lgb.fit(X_train, y_train)
-    cat.fit(X_train, y_train)
-
-    joblib.dump(xgb, XGB_PATH)
-    joblib.dump(lgb, LGB_PATH)
-    joblib.dump(cat, CAT_PATH)
-    print("models have been saved to 'models/'\n")
-
-
-def run_inference():
-    if not os.path.exists(FUTURE_PATH):
-        print(f"Prediction data not found: {FUTURE_PATH}")
-        return
-
-    df_future = pd.read_csv(FUTURE_PATH)
-
-    PREDICT_COLUMNS_TO_DROP = [
-        "Rain",
-        "Fetch_Time",
-        "Forecast_Target_Time",
-        "Latitude",
-        "Longitude",
+    # 12 features in the exact training structure order
+    features = [
+        "Temperature",
+        "Humidity",
+        "Cloud_Cover",
+        "Pressure",
+        "Wind_Speed",
+        "Hour",
+        "Month",
+        "Location_Encoded",
+        "hour_sin",
+        "hour_cos",
+        "month_sin",
+        "month_cos",
     ]
-    X_future = df_future.drop(columns=PREDICT_COLUMNS_TO_DROP, errors="ignore")
 
-    loaded_xgb = joblib.load(XGB_PATH)
-    loaded_lgb = joblib.load(LGB_PATH)
-    loaded_cat = joblib.load(CAT_PATH)
+    # Convert features matrix to NumPy float32 (fixes input names bug)
+    X = df[features].values.astype(np.float32)
 
-    X_future = X_future[loaded_xgb.feature_names_in_]
+    # Initialize ONNX inference sessions
+    sess_xgb = rt.InferenceSession(xgb_path)
+    sess_lgb = rt.InferenceSession(lgb_path)
+    sess_cat = rt.InferenceSession(cat_path)
+    sess_meta = rt.InferenceSession(meta_path)
 
-    f_prob_xgb = loaded_xgb.predict_proba(X_future)[:, 1]
-    f_prob_lgb = loaded_lgb.predict_proba(X_future)[:, 1]
-    f_prob_cat = loaded_cat.predict_proba(X_future)[:, 1]
+    def get_class_1_prob(onnx_output):
+        probs = onnx_output[1]
+        if isinstance(probs, list) and isinstance(probs[0], dict):
+            return np.array([p[1] for p in probs])
+        return probs[:, 1]
 
-    forecast_probs = (
-        (WEIGHTS["xgb"] * f_prob_xgb)
-        + (WEIGHTS["lgb"] * f_prob_lgb)
-        + (WEIGHTS["cat"] * f_prob_cat)
+    # Run base classifiers
+    prob_xgb = get_class_1_prob(
+        sess_xgb.run(None, {sess_xgb.get_inputs()[0].name: X})
     )
-    forecast_preds = (forecast_probs >= 0.5).astype(int)
+    prob_lgb = get_class_1_prob(
+        sess_lgb.run(None, {sess_lgb.get_inputs()[0].name: X})
+    )
+    prob_cat = get_class_1_prob(
+        sess_cat.run(None, {sess_cat.get_inputs()[0].name: X})
+    )
 
+    # Stack prediction probabilities
+    stacked_features = np.column_stack((prob_xgb, prob_lgb, prob_cat)).astype(
+        np.float32
+    )
+
+    # Execute meta-stacking classifier
+    final_prob = get_class_1_prob(
+        sess_meta.run(None, {sess_meta.get_inputs()[0].name: stacked_features})
+    )
+
+    # Best stacking threshold optimized in Modelling.ipynb is 0.400
+    threshold = 0.400
+    final_pred = (final_prob >= threshold).astype(int)
+
+    # Build final forecast results
     final_output = pd.DataFrame()
-    COLS_TO_KEEP = ["Forecast_Target_Time", "Latitude", "Longitude"]
+    final_output["Forecast_Target_Time"] = df["Timestamp"]
+    final_output["Latitude"] = df["Latitude"]
+    final_output["Longitude"] = df["Longitude"]
+    final_output["rain_probability"] = final_prob.round(4)
+    final_output["predicted_rain"] = final_pred
 
-    for col in COLS_TO_KEEP:
-        if col in df_future.columns:
-            final_output[col] = df_future[col]
+    # Target directory path: data/processed/forecast
+    forecast_dir = os.path.join(project_root, "data", "processed", "forecast")
+    os.makedirs(forecast_dir, exist_ok=True)
 
-    final_output["rain_probability"] = forecast_probs.round(4)
-    final_output["predicted_rain"] = forecast_preds
+    # Save final forecast dataset
+    forecast_file = os.path.join(forecast_dir, f"forecast_{file_timestamp}.csv")
+    final_output.to_csv(forecast_file, index=False)
 
-    final_output.to_csv(OUTPUT_PATH, index=False)
-    print(f">>> Finished forecasting, file saved at: '{OUTPUT_PATH}'")
-
-
-def main():
-    # check if all models exist
-    models_exist = (
-        os.path.exists(XGB_PATH)
-        and os.path.exists(LGB_PATH)
-        and os.path.exists(CAT_PATH)
+    print(
+        f"Successfully ran ONNX Stacking Stacker and saved predictions to {forecast_file}"
     )
 
-    if not models_exist:
-        print("[STATUS] Pre-trained models not found. Starting training phase...")
-        train_and_save_models()
-    else:
-        print("[STATUS] Found pre-trained models. Skipping training phase")
+    # Sweep older forecast snapshots
+    _cleanup_old_forecast_files(forecast_dir, keep_last=720)
 
-    # Predict outcome
-    run_inference()
+    return forecast_file
 
 
-if __name__ == "__main__":
-    main()
+def _cleanup_old_forecast_files(folder_path: str, keep_last: int = 720) -> None:
+    """Scan and delete oldest forecast prediction CSV snapshots."""
+    pattern = os.path.join(folder_path, "forecast_*.csv")
+    files = glob.glob(pattern)
+
+    if len(files) > keep_last:
+        files.sort(key=os.path.getctime)
+        files_to_delete = files[:-keep_last]
+        for f in files_to_delete:
+            try:
+                os.remove(f)
+                print(f"Cleaned up old forecast file: {f}")
+            except Exception as e:
+                print(f"Failed to delete old forecast file {f}: {e}")

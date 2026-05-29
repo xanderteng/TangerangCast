@@ -454,7 +454,7 @@
   <nav class="navbar">
     <div class="navbar__brand">
       <span class="navbar__icon">⛈</span>
-      <span class="navbar__title">RainMap <em>Jabodetabek</em></span>
+      <span class="navbar__title">RainMap <em>Tangerang</em></span>
     </div>
     <div class="navbar__meta" id="fetch-badge">—</div>
   </nav>
@@ -658,8 +658,11 @@
         fillOpacity: 0.78,
       });
 
+      const probText = (point.rain_probability !== undefined && point.rain_probability !== null)
+        ? ` (${(point.rain_probability * 100).toFixed(0)}%)`
+        : "";
       circle.bindTooltip(`
-        <strong>${rainText(point)}</strong><br>
+        <strong>${rainText(point)}${probText}</strong><br>
         Time: ${formatTimeLabel(point.timestamp)}<br>
         ${fmt(point.latitude)}, ${fmt(point.longitude)}
       `, { sticky: true });
@@ -717,8 +720,16 @@
            </div>`
         : "";
 
+      const probHTML = (point.rain_probability !== undefined && point.rain_probability !== null)
+        ? `<div class="detail-cell">
+             <div class="detail-cell__label">ML Probability</div>
+             <div class="detail-cell__value">${(point.rain_probability * 100).toFixed(1)}<span class="detail-cell__unit"> %</span></div>
+           </div>`
+        : "";
+
       grid.innerHTML = `
         ${rainHTML}
+        ${probHTML}
         <div class="detail-cell">
           <div class="detail-cell__label">Timestamp</div>
           <div class="detail-cell__value compact">${formatTimeLabel(point.timestamp)}</div>

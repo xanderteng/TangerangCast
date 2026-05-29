@@ -4,7 +4,7 @@ pages/live_map.py — Streamlit page that renders the Leaflet map.
 Reads the latest current weather CSV from data/raw/current/,
 normalizes columns to match the JavaScript expectations,
 injects the data as window.INJECTED_CURRENT_DATA into the
-standalone HTML, and renders it via st.components.v1.html.
+live HTML, and renders it via st.components.v1.html.
 """
 
 import glob
@@ -21,7 +21,8 @@ _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_THIS_DIR)
 _CURRENT_DATA_DIR = os.path.join(_PROJECT_ROOT, "data", "raw", "current")
 _FUTURE_DATA_DIR = os.path.join(_PROJECT_ROOT, "data", "raw", "future")
-_STANDALONE_HTML = os.path.join(_PROJECT_ROOT, "assets", "standalone_map.html")
+_FORECAST_DATA_DIR = os.path.join(_PROJECT_ROOT, "data", "processed", "forecast")
+_LIVE_MAP_HTML = os.path.join(_PROJECT_ROOT, "assets", "live_map.html")
 _BORDER_GEOJSON = os.path.join(_PROJECT_ROOT, "assets", "tangerang_border.geojson")
 
 # ---------------------------------------------------------------------------
@@ -162,14 +163,39 @@ def _build_historic_payloads(polygon: list[list[float]]) -> dict:
 
 
 def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
-    """Read the latest future weather CSV, group by Forecast_Time, and return payloads."""
-    csv_path = _find_latest_csv(_FUTURE_DATA_DIR)
-    if not csv_path:
+    """Read the latest future weather CSV and final ONNX forecast predictions, and return payloads."""
+    raw_future_csv = _find_latest_csv(_FUTURE_DATA_DIR)
+    forecast_csv = _find_latest_csv(_FORECAST_DATA_DIR)
+
+    if not forecast_csv:
         return {"times": [], "data": {}}
 
-    df = pd.read_csv(csv_path)
-    df = df.rename(columns=_COLUMN_MAP)
-    df = df.rename(columns={"Forecast_Time": "timestamp"})
+    df_forecast = pd.read_csv(forecast_csv)
+
+    # Use Forecast_Target_Time as timestamp
+    df_forecast = df_forecast.rename(columns={"Forecast_Target_Time": "timestamp"})
+
+    if raw_future_csv:
+        df_raw = pd.read_csv(raw_future_csv)
+
+        # Parse string dates to datetime to bypass formatting differences
+        df_raw["dt"] = pd.to_datetime(df_raw["Forecast_Time"])
+        df_forecast["dt"] = pd.to_datetime(df_forecast["timestamp"])
+
+        df = pd.merge(df_raw, df_forecast, on=["dt", "Latitude", "Longitude"], how="inner")
+
+        # Strip temporary column and map headers
+        df = df.drop(columns=["dt"])
+        df = df.rename(columns=_COLUMN_MAP)
+        df["rain_label"] = df["predicted_rain"]
+    else:
+        # Fallback if raw future file is not found (still display forecast markers with ML predictions)
+        df = df_forecast.rename(columns=_COLUMN_MAP)
+        df["rain_label"] = df["predicted_rain"]
+
+        # Populate missing physical weather metrics with None
+        for col in ["temperature", "humidity", "wind_speed", "cloud_cover", "pressure"]:
+            df[col] = None
 
     # Sort by timestamp so the times list is chronological
     df = df.sort_values(by="timestamp")
@@ -177,12 +203,12 @@ def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
     times = []
     data = {}
 
-    # Extract fetch_time from the first valid entry
-    fetch_time = (
-        df["fetch_time"].dropna().iloc[0]
-        if not df["fetch_time"].dropna().empty
-        else None
-    )
+    # Extract fetch_time from raw or fallback to timestamp
+    fetch_time = None
+    if "fetch_time" in df.columns:
+        valid_fetch = df["fetch_time"].dropna()
+        if not valid_fetch.empty:
+            fetch_time = valid_fetch.iloc[0]
 
     # Group by timestamp (Forecast_Time)
     for timestamp, group in df.groupby("timestamp"):
@@ -195,13 +221,15 @@ def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
                 continue
 
             rain_val = row.get("rain_label")
+            rain_prob = row.get("rain_probability")
             points.append(
                 {
                     "latitude": lat,
                     "longitude": lon,
                     "rain_label": None if pd.isna(rain_val) else int(rain_val),
+                    "rain_probability": None if pd.isna(rain_prob) else float(rain_prob),
                     "timestamp": _clean_value(row.get("timestamp")),
-                    "fetch_time": _clean_value(row.get("fetch_time")),
+                    "fetch_time": _clean_value(fetch_time),
                     "temperature": _clean_value(row.get("temperature")),
                     "humidity": _clean_value(row.get("humidity")),
                     "wind_speed": _clean_value(row.get("wind_speed")),
@@ -227,8 +255,8 @@ def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
 def _inject_and_render(
     payload: dict, geojson_data: dict, historic_payloads: dict, forecast_payloads: dict
 ) -> None:
-    """Read the standalone HTML, inject all payloads & border GeoJSON, and render via Streamlit."""
-    with open(_STANDALONE_HTML, encoding="utf-8") as f:
+    """Read the live HTML, inject all payloads & border GeoJSON, and render via Streamlit."""
+    with open(_LIVE_MAP_HTML, encoding="utf-8") as f:
         html = f.read()
 
     injection_script = (
@@ -256,6 +284,14 @@ def _inject_and_render(
 # Page entry point
 # ---------------------------------------------------------------------------
 st.set_page_config(page_title="Live Map", page_icon="🗺️", layout="wide")
+
+# Sidebar disclaimer callout
+st.sidebar.info(
+    "⚠️ **Disclaimer**\n\n"
+    "Forecasts are generated using a machine-learning Stacking Ensemble model "
+    "(XGBoost, LightGBM, CatBoost) running decoupled ONNX inference on fetched Open-Meteo prediction grids. "
+    "These predictions are experimental and should not be used as primary guidance for safety or critical operations."
+)
 
 geojson_data, polygon = _load_border_polygon()
 

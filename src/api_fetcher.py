@@ -211,6 +211,13 @@ class APIFetcher:
 
         print(f"Saved {len(df)} rows to {final_file}")
         self._cleanup_old_files(self.dirs["future"], keep_last=720)
+
+        try:
+            from src.preprocessor import preprocess_future_data
+            preprocess_future_data(final_file, file_timestamp)
+        except Exception as e:
+            print(f"Warning: Failed to preprocess future weather forecast data: {e}")
+
         return df
 
     def _cleanup_old_files(self, folder_path, keep_last):
