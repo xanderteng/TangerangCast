@@ -35,7 +35,7 @@ def test_preprocessor_execution(dummy_future_csv, monkeypatch, tmp_path):
     dummy_pt = PowerTransformer(method="yeo-johnson")
     dummy_df = pd.DataFrame(
         np.random.normal(size=(10, 5)),
-        columns=["Temperature", "Humidity", "Cloud_Cover", "Pressure", "Wind_Speed"]
+        columns=["Temperature", "Humidity", "Cloud_Cover", "Pressure", "Wind_Speed"],
     )
     dummy_scaler.fit(dummy_df)
     dummy_pt.fit(dummy_scaler.transform(dummy_df))
@@ -95,12 +95,8 @@ def test_preprocessor_execution(dummy_future_csv, monkeypatch, tmp_path):
         assert df_processed["Location_Encoded"].tolist() == [4, 7, 0]
 
         # Verify sin/cos calculations
-        np.testing.assert_allclose(
-            df_processed["hour_sin"].iloc[0], 0.0, atol=1e-7
-        )
-        np.testing.assert_allclose(
-            df_processed["hour_cos"].iloc[0], 1.0, atol=1e-7
-        )
+        np.testing.assert_allclose(df_processed["hour_sin"].iloc[0], 0.0, atol=1e-7)
+        np.testing.assert_allclose(df_processed["hour_cos"].iloc[0], 1.0, atol=1e-7)
 
     finally:
         # Cleanup test output file

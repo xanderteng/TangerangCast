@@ -9,14 +9,12 @@ from src.inference import run_onnx_inference, _cleanup_old_forecast_files
 
 # Mock class for ONNX input meta
 class MockInput:
-
     def __init__(self, name):
         self.name = name
 
 
 # Mock class for rt.InferenceSession to prevent reading physical models in CI/CD environments
 class MockSession:
-
     def __init__(self, model_path, *args, **kwargs):
         self.model_path = model_path
         if "xgb" in model_path:
