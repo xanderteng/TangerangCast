@@ -59,15 +59,9 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
         return probs[:, 1]
 
     # Run base classifiers
-    prob_xgb = get_class_1_prob(
-        sess_xgb.run(None, {sess_xgb.get_inputs()[0].name: X})
-    )
-    prob_lgb = get_class_1_prob(
-        sess_lgb.run(None, {sess_lgb.get_inputs()[0].name: X})
-    )
-    prob_cat = get_class_1_prob(
-        sess_cat.run(None, {sess_cat.get_inputs()[0].name: X})
-    )
+    prob_xgb = get_class_1_prob(sess_xgb.run(None, {sess_xgb.get_inputs()[0].name: X}))
+    prob_lgb = get_class_1_prob(sess_lgb.run(None, {sess_lgb.get_inputs()[0].name: X}))
+    prob_cat = get_class_1_prob(sess_cat.run(None, {sess_cat.get_inputs()[0].name: X}))
 
     # Stack prediction probabilities
     stacked_features = np.column_stack((prob_xgb, prob_lgb, prob_cat)).astype(

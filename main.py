@@ -65,9 +65,7 @@ def run_pipeline_iteration(fetch_future=True):
         else:
             print("[WARNING] Future grid fetching skipped or returned no data.")
     else:
-        print(
-            "[PIPELINE] Skipping future grid fetch and ML inference for this hour."
-        )
+        print("[PIPELINE] Skipping future grid fetch and ML inference for this hour.")
 
 
 def main():

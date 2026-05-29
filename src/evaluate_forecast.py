@@ -53,9 +53,7 @@ def evaluate_latest_forecast():
     df_forecast["dt"] = pd.to_datetime(df_forecast["Forecast_Target_Time"])
 
     # Inner merge on datetimes and coordinates
-    df = pd.merge(
-        df_raw, df_forecast, on=["dt", "Latitude", "Longitude"], how="inner"
-    )
+    df = pd.merge(df_raw, df_forecast, on=["dt", "Latitude", "Longitude"], how="inner")
 
     if df.empty:
         print(
@@ -86,13 +84,13 @@ def evaluate_latest_forecast():
         roc_auc_str = "N/A (Only one class present in true values)"
 
     # Print Report
-    print("-"*50)
+    print("-" * 50)
     print(f"Accuracy  : {accuracy:.4f}")
     print(f"Precision : {precision:.4f}")
     print(f"Recall    : {recall:.4f}")
     print(f"F1-Score  : {f1:.4f}")
     print(f"ROC-AUC   : {roc_auc_str}")
-    print("-"*50)
+    print("-" * 50)
 
     # Confusion matrix elements for more detail
     tp = np.sum((y_true == 1) & (y_pred == 1))

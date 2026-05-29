@@ -8,8 +8,6 @@ on:
     paths-ignore:
       - 'README.md'
       - 'notebook/**'
-      - 'data/**'
-      - 'models/**'
   pull_request:
     branches:
       - main
@@ -17,8 +15,6 @@ on:
     paths-ignore:
       - 'README.md'
       - 'notebook/**'
-      - 'data/**'
-      - 'models/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

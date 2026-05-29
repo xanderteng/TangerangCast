@@ -182,7 +182,9 @@ def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
         df_raw["dt"] = pd.to_datetime(df_raw["Forecast_Time"])
         df_forecast["dt"] = pd.to_datetime(df_forecast["timestamp"])
 
-        df = pd.merge(df_raw, df_forecast, on=["dt", "Latitude", "Longitude"], how="inner")
+        df = pd.merge(
+            df_raw, df_forecast, on=["dt", "Latitude", "Longitude"], how="inner"
+        )
 
         # Strip temporary column and map headers
         df = df.drop(columns=["dt"])
@@ -227,7 +229,9 @@ def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
                     "latitude": lat,
                     "longitude": lon,
                     "rain_label": None if pd.isna(rain_val) else int(rain_val),
-                    "rain_probability": None if pd.isna(rain_prob) else float(rain_prob),
+                    "rain_probability": None
+                    if pd.isna(rain_prob)
+                    else float(rain_prob),
                     "timestamp": _clean_value(row.get("timestamp")),
                     "fetch_time": _clean_value(fetch_time),
                     "temperature": _clean_value(row.get("temperature")),

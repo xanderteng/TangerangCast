@@ -1,7 +1,6 @@
 import os
 import glob
 import pandas as pd
-import numpy as np
 import pytest
 from src.inference import run_onnx_inference, _cleanup_old_forecast_files
 
@@ -10,7 +9,11 @@ from src.inference import run_onnx_inference, _cleanup_old_forecast_files
 def dummy_processed_csv(tmp_path):
     """Create a temporary preprocessed future CSV file containing all 12 model features."""
     data = {
-        "Timestamp": ["2026-05-28 00:00:00", "2026-05-28 01:00:00", "2026-05-28 02:00:00"],
+        "Timestamp": [
+            "2026-05-28 00:00:00",
+            "2026-05-28 01:00:00",
+            "2026-05-28 02:00:00",
+        ],
         "Temperature": [-1.0, 0.0, 1.2],
         "Humidity": [0.5, -0.2, 0.9],
         "Cloud_Cover": [-0.8, 0.4, 0.7],

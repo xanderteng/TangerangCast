@@ -11,7 +11,7 @@ def dummy_future_csv(tmp_path):
     """Create a temporary raw future grid CSV file for testing."""
     data = {
         "Forecast_Time": ["2026-05-28T00:00", "2026-05-28T01:00", "2026-05-28T02:00"],
-        "Latitude": [-6.2427, -6.3407, -6.2226],  
+        "Latitude": [-6.2427, -6.3407, -6.2226],
         "Longitude": [106.5173, 106.7371, 106.6533],
         "Temperature": [25.5, 26.0, 24.8],
         "Humidity": [80.0, 78.0, 85.0],
@@ -71,12 +71,8 @@ def test_preprocessor_execution(dummy_future_csv, monkeypatch, tmp_path):
         assert df_processed["Location_Encoded"].tolist() == [4, 7, 0]
 
         # Verify sin/cos calculations
-        np.testing.assert_allclose(
-            df_processed["hour_sin"].iloc[0], 0.0, atol=1e-7
-        )
-        np.testing.assert_allclose(
-            df_processed["hour_cos"].iloc[0], 1.0, atol=1e-7
-        )
+        np.testing.assert_allclose(df_processed["hour_sin"].iloc[0], 0.0, atol=1e-7)
+        np.testing.assert_allclose(df_processed["hour_cos"].iloc[0], 1.0, atol=1e-7)
 
     finally:
         # Cleanup test output file

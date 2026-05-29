@@ -26,7 +26,9 @@ def _get_fitted_models():
     if _SCALER is None or _PT is None:
         # Find historical data path relative to this file
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        hist_path = os.path.join(project_root, "data", "raw", "historic", "historic.csv")
+        hist_path = os.path.join(
+            project_root, "data", "raw", "historic", "historic.csv"
+        )
 
         if not os.path.exists(hist_path):
             raise FileNotFoundError(
