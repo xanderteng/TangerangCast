@@ -18,3 +18,4 @@ data/processed/
 
 # Model files
 models/
+catboost_info/

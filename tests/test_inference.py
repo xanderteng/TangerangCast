@@ -1,8 +1,49 @@
 import os
 import glob
 import pandas as pd
+import numpy as np
 import pytest
+import onnxruntime as rt
 from src.inference import run_onnx_inference, _cleanup_old_forecast_files
+
+
+# Mock class for ONNX input meta
+class MockInput:
+
+    def __init__(self, name):
+        self.name = name
+
+
+# Mock class for rt.InferenceSession to prevent reading physical models in CI/CD environments
+class MockSession:
+
+    def __init__(self, model_path, *args, **kwargs):
+        self.model_path = model_path
+        if "xgb" in model_path:
+            self.inputs = [MockInput("input")]
+        elif "lgb" in model_path:
+            self.inputs = [MockInput("input")]
+        elif "cat" in model_path:
+            self.inputs = [MockInput("features")]
+        elif "meta" in model_path:
+            self.inputs = [MockInput("meta_input")]
+        else:
+            self.inputs = [MockInput("input")]
+
+    def get_inputs(self):
+        return self.inputs
+
+    def run(self, output_names, input_dict):
+        # Extract the input array
+        input_name = self.inputs[0].name
+        X = input_dict[input_name]
+        N = len(X)
+
+        # Base models and meta models return [labels, probabilities]
+        # probabilities is a N x 2 array
+        labels = np.zeros(N, dtype=np.int64)
+        probs = np.column_stack((np.ones(N) * 0.5, np.ones(N) * 0.5))
+        return [labels, probs]
 
 
 @pytest.fixture
@@ -36,8 +77,19 @@ def dummy_processed_csv(tmp_path):
     return file_path
 
 
-def test_onnx_inference_execution(dummy_processed_csv):
+def test_onnx_inference_execution(dummy_processed_csv, monkeypatch, tmp_path):
     """Test that run_onnx_inference loads all 4 decoupled ONNX models and runs the stacking predictions correctly."""
+    # Monkeypatch onnxruntime InferenceSession directly to use MockSession
+    monkeypatch.setattr(rt, "InferenceSession", MockSession)
+
+    # We redirect project_root to tmp_path for saving output
+    # to avoid writing to standard data/processed/ during unit tests
+    monkeypatch.setattr(
+        os.path,
+        "abspath",
+        lambda path: str(tmp_path) if "src" in path else os.path.realpath(path),
+    )
+
     timestamp = "99999999_9999"
     forecast_file = run_onnx_inference(str(dummy_processed_csv), timestamp)
 

@@ -3,7 +3,9 @@ import glob
 import pandas as pd
 import numpy as np
 import pytest
+import src.preprocessor
 from src.preprocessor import preprocess_future_data, _cleanup_old_processed_files
+from sklearn.preprocessing import StandardScaler, PowerTransformer
 
 
 @pytest.fixture
@@ -28,6 +30,28 @@ def dummy_future_csv(tmp_path):
 
 def test_preprocessor_execution(dummy_future_csv, monkeypatch, tmp_path):
     """Test that preprocess_future_data extracts features, executes nearest location mapping, standardizes shapes, and saves the output."""
+    # Pre-fit dummy StandardScaler and PowerTransformer to avoid reading historic.csv
+    dummy_scaler = StandardScaler()
+    dummy_pt = PowerTransformer(method="yeo-johnson")
+    dummy_df = pd.DataFrame(
+        np.random.normal(size=(10, 5)),
+        columns=["Temperature", "Humidity", "Cloud_Cover", "Pressure", "Wind_Speed"]
+    )
+    dummy_scaler.fit(dummy_df)
+    dummy_pt.fit(dummy_scaler.transform(dummy_df))
+
+    # Monkeypatch preprocessor variables directly to bypass file-based _get_fitted_models
+    monkeypatch.setattr(src.preprocessor, "_SCALER", dummy_scaler)
+    monkeypatch.setattr(src.preprocessor, "_PT", dummy_pt)
+
+    # We redirect project_root to tmp_path for saving output
+    # to avoid writing to standard data/processed/ during unit tests
+    monkeypatch.setattr(
+        os.path,
+        "abspath",
+        lambda path: str(tmp_path) if "src" in path else os.path.realpath(path),
+    )
+
     timestamp = "99999999_9999"
     processed_file = preprocess_future_data(str(dummy_future_csv), timestamp)
 
@@ -71,8 +95,12 @@ def test_preprocessor_execution(dummy_future_csv, monkeypatch, tmp_path):
         assert df_processed["Location_Encoded"].tolist() == [4, 7, 0]
 
         # Verify sin/cos calculations
-        np.testing.assert_allclose(df_processed["hour_sin"].iloc[0], 0.0, atol=1e-7)
-        np.testing.assert_allclose(df_processed["hour_cos"].iloc[0], 1.0, atol=1e-7)
+        np.testing.assert_allclose(
+            df_processed["hour_sin"].iloc[0], 0.0, atol=1e-7
+        )
+        np.testing.assert_allclose(
+            df_processed["hour_cos"].iloc[0], 1.0, atol=1e-7
+        )
 
     finally:
         # Cleanup test output file
