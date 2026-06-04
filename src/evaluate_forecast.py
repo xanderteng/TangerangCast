@@ -126,8 +126,12 @@ def evaluate_forecast_vs_current():
     print(f"Total current files found: {len(current_files)}")
 
     if len(forecast_files) < 5 or len(current_files) < 25:
-        print("[ERROR] Not enough data files to perform the standard 24-hour evaluation cycle.")
-        print(f"Required: at least 5 forecast files (found {len(forecast_files)}) and 25 current files (found {len(current_files)}).")
+        print(
+            "[ERROR] Not enough data files to perform the standard 24-hour evaluation cycle."
+        )
+        print(
+            f"Required: at least 5 forecast files (found {len(forecast_files)}) and 25 current files (found {len(current_files)})."
+        )
         return
 
     # Select the latest 5 forecasts and latest 25 current files
@@ -136,15 +140,23 @@ def evaluate_forecast_vs_current():
 
     print("\nSelected Forecast files for evaluation:")
     for idx, f in enumerate(selected_forecasts):
-        mark = " (Excluded/Latest)" if idx == 4 else f" (F_{idx+1})"
-        print(f"  Forecast {idx+1}: {os.path.basename(f)}{mark}")
+        mark = " (Excluded/Latest)" if idx == 4 else f" (F_{idx + 1})"
+        print(f"  Forecast {idx + 1}: {os.path.basename(f)}{mark}")
 
     print("\nSelected Current snapshots slice details:")
     print(f"  First current (Excluded): {os.path.basename(selected_currents[0])}")
-    print(f"  Evaluating Q1 current: {os.path.basename(selected_currents[1])} to {os.path.basename(selected_currents[6])}")
-    print(f"  Evaluating Q2 current: {os.path.basename(selected_currents[7])} to {os.path.basename(selected_currents[12])}")
-    print(f"  Evaluating Q3 current: {os.path.basename(selected_currents[13])} to {os.path.basename(selected_currents[18])}")
-    print(f"  Evaluating Q4 current: {os.path.basename(selected_currents[19])} to {os.path.basename(selected_currents[24])}")
+    print(
+        f"  Evaluating Q1 current: {os.path.basename(selected_currents[1])} to {os.path.basename(selected_currents[6])}"
+    )
+    print(
+        f"  Evaluating Q2 current: {os.path.basename(selected_currents[7])} to {os.path.basename(selected_currents[12])}"
+    )
+    print(
+        f"  Evaluating Q3 current: {os.path.basename(selected_currents[13])} to {os.path.basename(selected_currents[18])}"
+    )
+    print(
+        f"  Evaluating Q4 current: {os.path.basename(selected_currents[19])} to {os.path.basename(selected_currents[24])}"
+    )
 
     # Helper function to load and process a list of current files
     def load_quarter_current(files_list):
@@ -155,7 +167,9 @@ def evaluate_forecast_vs_current():
                 continue
             # Get Fetch_Time from the first row and round down to 00 minutes
             fetch_time = df["Fetch_Time"].iloc[0]
-            dt_obj = pd.to_datetime(fetch_time).replace(minute=0, second=0, microsecond=0)
+            dt_obj = pd.to_datetime(fetch_time).replace(
+                minute=0, second=0, microsecond=0
+            )
             df["dt"] = dt_obj
             dfs.append(df)
         return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
@@ -181,10 +195,7 @@ def evaluate_forecast_vs_current():
             continue
 
         df_merged_q = pd.merge(
-            df_current_q,
-            df_forecast,
-            on=["dt", "Latitude", "Longitude"],
-            how="inner"
+            df_current_q, df_forecast, on=["dt", "Latitude", "Longitude"], how="inner"
         )
         print(f"  Matched {df_merged_q.shape[0]} grid points for {name}.")
         matched_dfs.append(df_merged_q)
@@ -252,7 +263,9 @@ def evaluate_forecast_vs_current():
             rf.write("==================================================\n")
             rf.write("      TangerangCast 24-Hour Stacking Performance Report\n")
             rf.write("==================================================\n")
-            rf.write(f"Generated at             : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            rf.write(
+                f"Generated at             : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            )
             rf.write(f"Total matched grid points: {df_all_matched.shape[0]}\n")
             rf.write("Forecasts evaluated      : 4 cycles\n")
             rf.write("Currents evaluated       : 24 snapshots\n")

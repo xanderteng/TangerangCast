@@ -244,7 +244,9 @@ def run_scheduler():
         while True:
             # Sleep until the start of the next hour (minute 00:00) with a small buffer
             now = datetime.now()
-            next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+            next_hour = (now + timedelta(hours=1)).replace(
+                minute=0, second=0, microsecond=0
+            )
             sleep_seconds = (next_hour - now).total_seconds()
             time.sleep(sleep_seconds + 1.0)
 
