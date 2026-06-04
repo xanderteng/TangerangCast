@@ -82,10 +82,15 @@ def test_onnx_inference_execution(dummy_processed_csv, monkeypatch, tmp_path):
 
     # We redirect project_root to tmp_path for saving output
     # to avoid writing to standard data/processed/ during unit tests
+    orig_abspath = os.path.abspath
     monkeypatch.setattr(
         os.path,
         "abspath",
-        lambda path: str(tmp_path) if "src" in path else os.path.realpath(path),
+        lambda path: (
+            str(tmp_path / "src" / "inference.py")
+            if "src" in str(path)
+            else orig_abspath(path)
+        ),
     )
 
     timestamp = "99999999_9999"
