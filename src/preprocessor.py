@@ -88,10 +88,11 @@ def preprocess_future_data(file_path: str, file_timestamp: str) -> str:
     elif "time" in df.columns:
         df = df.rename(columns={"time": "Timestamp"})
 
-    # Extract temporal components
+    # Extract temporal components (converted from GMT+7 forecast time back to UTC to match training timezone)
     df["Timestamp"] = pd.to_datetime(df["Timestamp"])
-    df["Hour"] = df["Timestamp"].dt.hour
-    df["Month"] = df["Timestamp"].dt.month
+    df["Timestamp_utc"] = df["Timestamp"] - pd.Timedelta(hours=7)
+    df["Hour"] = df["Timestamp_utc"].dt.hour
+    df["Month"] = df["Timestamp_utc"].dt.month
 
     # Assign nearest location encoded based on coordinates
     _assign_nearest_location_encoded(df)

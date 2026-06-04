@@ -10,3 +10,5 @@ lightgbm
 catboost
 joblib
 onnxruntime
+onnxmltools
+onnxconverter_common
