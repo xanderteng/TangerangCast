@@ -2,7 +2,7 @@
 
 *TangerangCast* is a cutting-edge, machine learning-powered weather forecasting and geospatial visualization platform specifically designed for Tangerang, Banten, Indonesia. 
 
-By fetching live meteorological variables from the Open-Meteo API, TangerangCast feeds this high-resolution data into a trained XGBoost predictive model, and visualizes real-time and forecasted rain probabilities across a 20x20 geographical grid, refreshed automatically every 6 hours.
+By fetching live meteorological variables from the Open-Meteo API, TangerangCast feeds this high-resolution data into an advanced **Stacking Ensemble Machine Learning Model** (comprising XGBoost, LightGBM, CatBoost, and a Logistic Regression meta-model). It then visualizes real-time and forecasted rain probabilities across a granular 20x20 geographical grid, refreshed automatically every 6 hours.
 
 ---
 
@@ -10,9 +10,10 @@ By fetching live meteorological variables from the Open-Meteo API, TangerangCast
 
 * **🌐 Automated High-Resolution Grid Pipeline:** An automated scheduler seamlessly fetches, batches, and ingests live meteorological data across a granular 20x20 geographical grid covering Tangerang.
 * **💾 Robust Local Data Lake:** Clean separation of data tiers (`historic`, `current`, `future`, and `temp`) using structured, immutable CSV files with time-based auto-cleanup.
-* **🗺️ Geospatial Visualization Map:** An interactive map visualizing rain zones, forecast overlays, and geographic risk levels in Tangerang.
-* **📊 Machine Learning Insights Dashboard:** Rich analytics demonstrating feature importances, model performance evaluations, and comparison plots.
-* **🤖 Integrated CI/CD Automation:** Robust pipelines executing code style and formatting checks via Ruff and unit testing with pytest on every branch push.
+* **🧠 Stacking Ensemble Architecture:** Real-time inference utilizes 4 highly-optimized, decoupled `.onnx` models (XGBoost, LightGBM, CatBoost + Meta LogReg) for exceptionally robust rain predictions.
+* **🗺️ Geospatial Visualization Map:** An interactive Folium map visualizing rain zones, forecast overlays, and geographic risk levels in Tangerang.
+* **📊 MLOps & Continuous Training (CT):** Integrated MLflow tracking with an automated weekly retraining pipeline hosted on GitHub Actions, hot-swapping live production models seamlessly via SSH/SCP.
+* **🤖 Integrated CI/CD Automation:** Robust pipelines executing code style/formatting checks (Ruff), unit testing (pytest), and Docker VPS deployment on every branch push.
 
 ---
 
@@ -23,11 +24,12 @@ To maintain a clean and reliable codebase, the project follows this directory tr
 ```text
 TangerangCast/
 ├── .github/workflows/
-│   └── ci-cd.yml          # GitHub Actions CI/CD Pipeline Configuration 
+│   ├── ci-cd.yml          # GitHub Actions CI/CD Pipeline (Lint, Test, Deploy to VPS)
+│   └── ct-pipeline.yml    # Continuous Training (CT) Pipeline (Weekly ONNX Retrain & Hot Swap)
 ├── data/
 │   ├── raw/               # Auto-fetched Raw Data (Historic, Current, Future, Temp)
 │   └── processed/         # Structured, clean datasets for model training & analysis
-├── models/                # Target directory for serialized ML model weights (.pkl)
+├── models/                # Target directory for 4 serialized ML model weights (.onnx)
 ├── notebook/
 │   └── EDA.ipynb          # Jupyter notebook with Exploratory Data Analysis
 ├── pages/
@@ -36,7 +38,8 @@ TangerangCast/
 ├── src/
 │   ├── api_fetcher.py     # Background pipeline scheduling & Open-Meteo grid downloader
 │   ├── preprocessor.py    # Data cleaning, normalization, and feature engineering logic
-│   └── inference.py       # Scoring pipeline feeding XGBoost models
+│   ├── inference.py       # Scoring pipeline driving 4 ONNX models for predictions
+│   └── train.py           # Core training script generating the Stacking Ensemble & MLflow logs
 ├── tests/
 │   └── test_api.py        # Pytest unit tests for validating pipeline components
 ├── Dockerfile             # Multi-stage production container configuration
@@ -47,11 +50,10 @@ TangerangCast/
 
 ### 🔍 Core Module Mappings
 For developers onboarding to the project, here are direct references to our core modules:
-* 🛠️ **Application Core**: [app.py](file:///d:/MLRain/app.py) handles high-level layout, page navigation, and configuration.
-* 🛰️ **Data Ingestion**: [src/api_fetcher.py](file:///d:/MLRain/src/api_fetcher.py) automates connection pooling, batch queries, and rate-limiting retry protocols.
-* 🧹 **Data Preprocessing**: [src/preprocessor.py](file:///d:/MLRain/src/preprocessor.py) constructs structural inputs and executes feature transforms.
-* 🔮 **Inference Engine**: [src/inference.py](file:///d:/MLRain/src/inference.py) loads models and delivers real-time grid predictions.
-* 🧪 **Pipeline Tests**: [tests/test_api.py](file:///d:/MLRain/tests/test_api.py) ensures code integrity by testing key pipeline logic.
+* 🛠️ **Application Core**: `app.py` handles high-level layout, page navigation, and configuration.
+* 🛰️ **Data Ingestion**: `src/api_fetcher.py` automates connection pooling, batch queries, and rate-limiting retry protocols.
+* 🔮 **Inference Engine**: `src/inference.py` loads the 4 ONNX Stacking Session models and delivers real-time predictions.
+* 🤖 **Continuous Training**: `src/train.py` fetches the latest sliding-window data, retrains the 3 base models and meta-model, optimizes thresholds, exports ONNX, and logs to SQLite MLflow.
 
 ---
 
@@ -63,11 +65,6 @@ The ingestion pipeline queries the Open-Meteo API over a granular geospatial bou
 * **Grid Resolution:** 20x20 coordinates (400 data points per interval)
 * **Timezone Config:** `Asia/Jakarta` (GMT+7)
 * **Variables Extracted:** `temperature_2m`, `relative_humidity_2m`, `cloud_cover`, `surface_pressure`, `wind_speed_10m`, and `rain`.
-
-> [!NOTE]
-> **Historic Dataset Location:** 
-> Due to GitHub file size limitations (exceeding 25MB), the processed historic dataset `ProcessedHistoric.csv` is stored externally.
-> You can download the dataset here: [Google Drive Link](https://drive.google.com/file/d/16BXPEQiGfJZ-qk71q3RL_CBycXSo6mXl/view?usp=drive_link). Once downloaded, place it under the `data/processed/` directory.
 
 ---
 
@@ -170,23 +167,23 @@ graph TD
     F -- Yes --> H{Docker Build Success?}
     H -- No --> I[Fix Dockerfile/Deps]
     I --> B
-    H -- Yes --> J[Open Pull Request & Merge]
+    H -- Yes --> J[Deploy to VPS & Merge]
 ```
 
 1. **Commit & Push:** Once your feature code is written, push it to your remote feature branch.
-2. **Automated Verification:** Our custom GitHub Actions workflow ([.github/workflows/ci-cd.yml](file:///d:/MLRain/.github/workflows/ci-cd.yml)) automatically runs on every push to verify:
+2. **Automated Verification:** Our custom GitHub Actions workflow (`.github/workflows/ci-cd.yml`) automatically runs on every push to verify:
    * **Ruff Linter:** Enforces formatting rules and stylistic standards.
    * **Ruff Formatter:** Ensures uniform, clean code representation.
    * **Pytest:** Runs all pipeline unit tests.
-   * **Docker Build:** Confirms the container builds successfully.
-3. **Merge Approval:** Only when all checks are green (passing) should you open a Pull Request (PR) to merge into the `main` branch.
+   * **Docker Build & VPS Deploy:** Confirms the container builds successfully and seamlessly ships the live Docker build to the VPS.
+3. **Continuous Training:** Our CT Pipeline (`.github/workflows/ct-pipeline.yml`) runs weekly via cron to pull live VPS data, retrain all 4 ONNX models on GitHub infrastructure, and hot-swap them into production using SCP/SSH.
 
 ---
 
 ## Guidelines for Machine Learning Engineers
 
-* **Model Storage:** All finalized serialized models (such as `.pkl` or `.xgb` files) must be dropped inside the `models/` directory.
+* **Model Storage:** All finalized serialized models (strictly `.onnx` files) must be exported inside the `models/` directory using the unified names: `xgboost_model.onnx`, `lightgbm_model.onnx`, `catboost_model.onnx`, `meta_model.onnx`.
 * **Git Restrictions:** 
   > [!CAUTION]
-  > Since binary models and bulky raw/processed directories are blacklisted in our [.gitignore](file:///d:/MLRain/.gitignore), **do not** attempt to force-add these files to Git. Large datasets should be hosted externally (e.g. Google Drive/S3) and model checkpoints should be tracked using model registries or git-lfs when integrated.
+  > Since binary models and bulky raw/processed directories are blacklisted in our `.gitignore`, **do not** attempt to force-add these files to Git. Baseline datasets are hosted via Google Drive and queried automatically by the CT pipeline runner.
 ---
