@@ -2,7 +2,7 @@ import os
 import glob
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -254,8 +254,8 @@ def evaluate_forecast_vs_current():
             rf.write("==================================================\n")
             rf.write(f"Generated at             : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             rf.write(f"Total matched grid points: {df_all_matched.shape[0]}\n")
-            rf.write(f"Forecasts evaluated      : 4 cycles\n")
-            rf.write(f"Currents evaluated       : 24 snapshots\n")
+            rf.write("Forecasts evaluated      : 4 cycles\n")
+            rf.write("Currents evaluated       : 24 snapshots\n")
             rf.write("-" * 50 + "\n")
             rf.write(f"Accuracy  : {accuracy:.4f}\n")
             rf.write(f"Precision : {precision:.4f}\n")
