@@ -16,3 +16,5 @@ catboost_info/
 tests/
 Dockerfile
 .dockerignore
+mlruns/
+mlruns.db

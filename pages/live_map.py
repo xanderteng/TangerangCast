@@ -292,8 +292,7 @@ st.set_page_config(page_title="Live Map", page_icon="🗺️", layout="wide")
 # Sidebar disclaimer callout
 st.sidebar.info(
     "⚠️ **Disclaimer**\n\n"
-    "Forecasts are generated using a machine-learning Stacking Ensemble model "
-    "(XGBoost, LightGBM, CatBoost) running decoupled ONNX inference on fetched Open-Meteo prediction grids. "
+    "Forecasts are generated using machine learning models on fetched Open-Meteo prediction grids. "
     "These predictions are experimental and should not be used as primary guidance for safety or critical operations."
 )
 

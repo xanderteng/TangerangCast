@@ -19,9 +19,9 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     models_dir = os.path.join(project_root, "models")
 
-    xgb_path = os.path.join(models_dir, "xgb_model.onnx")
-    lgb_path = os.path.join(models_dir, "lgb_model.onnx")
-    cat_path = os.path.join(models_dir, "cat_model.onnx")
+    xgb_path = os.path.join(models_dir, "xgboost_model.onnx")
+    lgb_path = os.path.join(models_dir, "lightgbm_model.onnx")
+    cat_path = os.path.join(models_dir, "catboost_model.onnx")
     meta_path = os.path.join(models_dir, "meta_model.onnx")
 
     # Load preprocessed future data
@@ -46,11 +46,16 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
     # Convert features matrix to NumPy float32 (fixes input names bug)
     X = df[features].values.astype(np.float32)
 
-    # Initialize ONNX inference sessions
-    sess_xgb = rt.InferenceSession(xgb_path)
-    sess_lgb = rt.InferenceSession(lgb_path)
-    sess_cat = rt.InferenceSession(cat_path)
-    sess_meta = rt.InferenceSession(meta_path)
+    # Initialize ONNX inference sessions with error handling
+    try:
+        sess_xgb = rt.InferenceSession(xgb_path)
+        sess_lgb = rt.InferenceSession(lgb_path)
+        sess_cat = rt.InferenceSession(cat_path)
+        sess_meta = rt.InferenceSession(meta_path)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load ONNX models. Ensure all 4 models exist in {models_dir}. Error: {e}"
+        )
 
     def get_class_1_prob(onnx_output):
         probs = onnx_output[1]

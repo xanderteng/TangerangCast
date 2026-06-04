@@ -7,15 +7,19 @@ ml_env/
 __pycache__/
 *.py[cod]
 *$py.class
+mlruns.db
 
 # Streamlit/Jupyter caches
 .streamlit/
 .ipynb_checkpoints/
 
 # Data files
-data/raw/
+data/raw/current/
+data/raw/future/
+data/raw/temp/
 data/processed/
 
 # Model files
 models/
 catboost_info/
+mlruns/
