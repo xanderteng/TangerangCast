@@ -68,6 +68,16 @@ def run_pipeline_iteration(fetch_future=True):
         print("[PIPELINE] Skipping future grid fetch and ML inference for this hour.")
 
 
+def sleep_until_next_hour():
+    """Sleep until the start of the next hour (minute 00:00) with a small buffer."""
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    sleep_seconds = (next_hour - now).total_seconds()
+    # Add a 1-second buffer to ensure we wake up after the hour mark starts
+    time.sleep(sleep_seconds + 1.0)
+
+
 def main():
     print("==================================================")
     print("         TangerangCast Machine Learning Pipeline")
@@ -80,8 +90,8 @@ def main():
     print("\nAuto-pipeline scheduler started. Press CTRL+C to stop.")
     try:
         while True:
-            # Wait for 1 hour (3600 seconds)
-            time.sleep(3600)
+            # Sleep until the next hour mark (00:00)
+            sleep_until_next_hour()
             current_timer += 1
 
             # Fetch current grid hourly, and execute future ML forecasts every 6 hours

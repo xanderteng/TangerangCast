@@ -242,7 +242,12 @@ def run_scheduler():
     print("Auto-fetch scheduler started. Press CTRL+C to stop.")
     try:
         while True:
-            time.sleep(3600)
+            # Sleep until the start of the next hour (minute 00:00) with a small buffer
+            now = datetime.now()
+            next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+            sleep_seconds = (next_hour - now).total_seconds()
+            time.sleep(sleep_seconds + 1.0)
+
             current_timer += 1
             fetcher.fetch_current_grid()
             if current_timer >= 6:
