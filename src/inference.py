@@ -3,12 +3,12 @@ import glob
 import pandas as pd
 import numpy as np
 import onnxruntime as rt
+import gc
 
 
 def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
     """Run decoupled ONNX models (XGB, LGBM, CatBoost) and Logistic Stacking Meta-model
-
-    on preprocessed future grid forecasts, saving to data/processed/forecast/forecast_<timestamp>.csv.
+    sequentially to save memory on 1GB RAM VPS.
     """
     if not os.path.exists(processed_file_path):
         raise FileNotFoundError(
@@ -18,11 +18,6 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
     # Define paths
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     models_dir = os.path.join(project_root, "models")
-
-    xgb_path = os.path.join(models_dir, "xgboost_model.onnx")
-    lgb_path = os.path.join(models_dir, "lightgbm_model.onnx")
-    cat_path = os.path.join(models_dir, "catboost_model.onnx")
-    meta_path = os.path.join(models_dir, "meta_model.onnx")
 
     # Load preprocessed future data
     df = pd.read_csv(processed_file_path)
@@ -46,16 +41,11 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
     # Convert features matrix to NumPy float32 (fixes input names bug)
     X = df[features].values.astype(np.float32)
 
-    # Initialize ONNX inference sessions with error handling
-    try:
-        sess_xgb = rt.InferenceSession(xgb_path)
-        sess_lgb = rt.InferenceSession(lgb_path)
-        sess_cat = rt.InferenceSession(cat_path)
-        sess_meta = rt.InferenceSession(meta_path)
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to load ONNX models. Ensure all 4 models exist in {models_dir}. Error: {e}"
-        )
+    # Low-memory session options configuration
+    opts = rt.SessionOptions()
+    opts.intra_op_num_threads = 1
+    opts.inter_op_num_threads = 1
+    opts.enable_mem_pattern = False
 
     def get_class_1_prob(onnx_output):
         probs = onnx_output[1]
@@ -63,20 +53,45 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
             return np.array([p[1] for p in probs])
         return probs[:, 1]
 
-    # Run base classifiers
-    prob_xgb = get_class_1_prob(sess_xgb.run(None, {sess_xgb.get_inputs()[0].name: X}))
-    prob_lgb = get_class_1_prob(sess_lgb.run(None, {sess_lgb.get_inputs()[0].name: X}))
-    prob_cat = get_class_1_prob(sess_cat.run(None, {sess_cat.get_inputs()[0].name: X}))
+    try:
+        # 1. Run XGBoost Session & Clear Memory Immediately
+        xgb_path = os.path.join(models_dir, "xgboost_model.onnx")
+        sess = rt.InferenceSession(xgb_path, opts)
+        prob_xgb = get_class_1_prob(sess.run(None, {sess.get_inputs()[0].name: X}))
+        del sess
+        gc.collect()
 
-    # Stack prediction probabilities
-    stacked_features = np.column_stack((prob_xgb, prob_lgb, prob_cat)).astype(
-        np.float32
-    )
+        # 2. Run LightGBM Session & Clear Memory Immediately
+        lgb_path = os.path.join(models_dir, "lightgbm_model.onnx")
+        sess = rt.InferenceSession(lgb_path, opts)
+        prob_lgb = get_class_1_prob(sess.run(None, {sess.get_inputs()[0].name: X}))
+        del sess
+        gc.collect()
 
-    # Execute meta-stacking classifier
-    final_prob = get_class_1_prob(
-        sess_meta.run(None, {sess_meta.get_inputs()[0].name: stacked_features})
-    )
+        # 3. Run CatBoost Session & Clear Memory Immediately
+        cat_path = os.path.join(models_dir, "catboost_model.onnx")
+        sess = rt.InferenceSession(cat_path, opts)
+        prob_cat = get_class_1_prob(sess.run(None, {sess.get_inputs()[0].name: X}))
+        del sess
+        gc.collect()
+
+        # Stack prediction probabilities
+        stacked_features = np.column_stack((prob_xgb, prob_lgb, prob_cat)).astype(
+            np.float32
+        )
+
+        # 4. Run Meta Classifier Session & Clear Memory Immediately
+        meta_path = os.path.join(models_dir, "meta_model.onnx")
+        sess = rt.InferenceSession(meta_path, opts)
+        final_prob = get_class_1_prob(
+            sess.run(None, {sess.get_inputs()[0].name: stacked_features})
+        )
+        del sess
+        gc.collect()
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load or execute ONNX models sequentially. Ensure all 4 models exist in {models_dir}. Error: {e}"
+        )
 
     # Best stacking threshold optimized in Modelling.ipynb is 0.400
     threshold = 0.400
