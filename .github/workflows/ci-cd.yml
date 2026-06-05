@@ -106,4 +106,8 @@ jobs:
             sudo docker build -t tangerangcast .
             sudo docker stop tangerangcast-prod || true
             sudo docker rm tangerangcast-prod || true
-            sudo docker run -d --name tangerangcast-prod -p 8501:8501 --restart always tangerangcast
+            sudo docker run -d --name tangerangcast-prod \
+              -p 8501:8501 \
+              -v ~/TangerangCast/data:/app/data \
+              -v ~/TangerangCast/models:/app/models \
+              --restart always tangerangcast
