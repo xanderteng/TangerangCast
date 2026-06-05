@@ -1,3 +1,4 @@
+import json
 import requests
 import pandas as pd
 import numpy as np
@@ -8,11 +9,30 @@ import glob
 
 
 class APIFetcher:
+    # Path to the Tangerang border GeoJSON (resolved relative to project root)
+    _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _BORDER_GEOJSON = os.path.join(_PROJECT_ROOT, "assets", "tangerang_border.geojson")
+
     def __init__(self):
         self.lat_min, self.lat_max = -6.36, -6.00
         self.lon_min, self.lon_max = 106.33, 106.77
         self.lats = np.linspace(self.lat_min, self.lat_max, 20)
         self.lons = np.linspace(self.lon_min, self.lon_max, 20)
+
+        # Load polygon boundary and filter grid to points inside Tangerang only
+        polygon = self._load_polygon()
+        all_coords = [
+            (round(lat, 5), round(lon, 5)) for lat in self.lats for lon in self.lons
+        ]
+        self.coords = [
+            (lat, lon)
+            for lat, lon in all_coords
+            if self._is_point_in_polygon(lat, lon, polygon)
+        ]
+        print(
+            f"Grid filtered: {len(self.coords)} of {len(all_coords)} points "
+            f"inside Tangerang border polygon."
+        )
 
         # Define explicit GMT+7 timezone
         self.tz_gmt7 = timezone(timedelta(hours=7))
@@ -25,6 +45,35 @@ class APIFetcher:
         }
         for d in self.dirs.values():
             os.makedirs(d, exist_ok=True)
+
+    @classmethod
+    def _load_polygon(cls) -> list[list[float]]:
+        """Load the Tangerang border polygon coordinates from the GeoJSON file."""
+        with open(cls._BORDER_GEOJSON, encoding="utf-8") as f:
+            geojson = json.load(f)
+        return geojson["features"][0]["geometry"]["coordinates"][0]
+
+    @staticmethod
+    def _is_point_in_polygon(
+        lat: float, lon: float, polygon: list[list[float]]
+    ) -> bool:
+        """Ray-casting algorithm to determine if a point (lat, lon) is inside a polygon."""
+        if lat is None or lon is None:
+            return False
+        inside = False
+        n = len(polygon)
+        p1x, p1y = polygon[0]  # [lng, lat]
+        for i in range(n + 1):
+            p2x, p2y = polygon[i % n]
+            if lat > min(p1y, p2y):
+                if lat <= max(p1y, p2y):
+                    if lon <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (lat - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or lon <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        return inside
 
     def _fetch_with_retries(self, url, max_retries=5):
         for attempt in range(max_retries):
@@ -58,9 +107,7 @@ class APIFetcher:
                 time.sleep(sleep_time)
 
     def fetch_current_grid(self):
-        coords = [
-            (round(lat, 5), round(lon, 5)) for lat in self.lats for lon in self.lons
-        ]
+        coords = self.coords
         records = []
         now = datetime.now(self.tz_gmt7)
         fetch_time = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -123,9 +170,7 @@ class APIFetcher:
         return df
 
     def fetch_future_grid(self):
-        coords = [
-            (round(lat, 5), round(lon, 5)) for lat in self.lats for lon in self.lons
-        ]
+        coords = self.coords
         records = []
         now = datetime.now(self.tz_gmt7)
         fetch_time = now.strftime("%Y-%m-%d %H:%M:%S")
