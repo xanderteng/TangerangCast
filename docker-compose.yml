@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build: .
@@ -16,14 +14,11 @@ services:
     container_name: mlflow_tracker
     ports:
       - "127.0.0.1:5000:5000"
-    environment:
-      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow.db
-      - MLFLOW_ARTIFACT_ROOT=/mlflow/artifacts
     volumes:
       - ./mlflow_data:/mlflow
-    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow/mlflow.db --default-artifact-root /mlflow/artifacts
+    command: mlflow server --host 0.0.0.0 --port 5000 --workers 1 --backend-store-uri sqlite:////mlflow/mlflow.db --default-artifact-root /mlflow/artifacts
     deploy:
       resources:
         limits:
-          memory: 400M
+          memory: 1G
     restart: always
