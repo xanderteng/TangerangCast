@@ -76,7 +76,7 @@ class APIFetcher:
 
             # Added &timezone=Asia%2FJakarta to match GMT+7
             url = (
-                f"https://api.open-meteo.com/v1/forecast?"
+                f"http://api.open-meteo.com/v1/forecast?"
                 f"latitude={lat_str}&longitude={lon_str}"
                 f"&current=temperature_2m,relative_humidity_2m,cloud_cover,"
                 f"surface_pressure,wind_speed_10m,rain"
@@ -141,7 +141,7 @@ class APIFetcher:
 
             # Added &timezone=Asia%2FJakarta to match GMT+7
             url = (
-                f"https://api.open-meteo.com/v1/forecast?"
+                f"http://api.open-meteo.com/v1/forecast?"
                 f"latitude={lat_str}&longitude={lon_str}"
                 f"&hourly=temperature_2m,relative_humidity_2m,cloud_cover,"
                 f"surface_pressure,wind_speed_10m,rain"
