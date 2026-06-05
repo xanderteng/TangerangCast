@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler, PowerTransformer
 def dummy_future_csv(tmp_path):
     """Create a temporary raw future grid CSV file for testing."""
     data = {
-        "Forecast_Time": ["2026-05-28T00:00", "2026-05-28T01:00", "2026-05-28T02:00"],
+        "Forecast_Time": ["2026-05-28T07:00", "2026-05-28T08:00", "2026-05-28T09:00"],
         "Latitude": [-6.2427, -6.3407, -6.2226],
         "Longitude": [106.5173, 106.7371, 106.6533],
         "Temperature": [25.5, 26.0, 24.8],
@@ -46,10 +46,15 @@ def test_preprocessor_execution(dummy_future_csv, monkeypatch, tmp_path):
 
     # We redirect project_root to tmp_path for saving output
     # to avoid writing to standard data/processed/ during unit tests
+    orig_abspath = os.path.abspath
     monkeypatch.setattr(
         os.path,
         "abspath",
-        lambda path: str(tmp_path) if "src" in path else os.path.realpath(path),
+        lambda path: (
+            str(tmp_path / "src" / "preprocessor.py")
+            if "src" in str(path)
+            else orig_abspath(path)
+        ),
     )
 
     timestamp = "99999999_9999"

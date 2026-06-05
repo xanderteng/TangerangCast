@@ -792,22 +792,45 @@
     }
 
     function loadTimes(mode) {
+      const now = new Date();
+      // Shift time to simulate GMT+7 in the local browser Date object
+      const offsetMs = (now.getTimezoneOffset() + 420) * 60000;
+      const gmt7Now = new Date(now.getTime() + offsetMs);
+
+      const currentHour = new Date(gmt7Now);
+      currentHour.setMinutes(0, 0, 0);
+
+      const nextHour = new Date(gmt7Now);
+      if (nextHour.getMinutes() > 0) {
+        nextHour.setHours(nextHour.getHours() + 1);
+        nextHour.setMinutes(0, 0, 0);
+      }
+
+      function parseTS(ts) {
+        const p = ts.split(/[- :T]/);
+        if (p.length < 4) return new Date(ts);
+        return new Date(p[0], p[1]-1, p[2], p[3], p[4]||0, 0);
+      }
+
       if (mode === "historic") {
         if (window.INJECTED_HISTORIC_DATA) {
-          activeTimes = window.INJECTED_HISTORIC_DATA.times || [];
+          activeTimes = (window.INJECTED_HISTORIC_DATA.times || []).filter(t => parseTS(t) < currentHour);
         } else {
           activeTimes = [];
         }
+        activeTimeIdx = activeTimes.length ? activeTimes.length - 1 : 0;
       } else if (mode === "forecast") {
         if (window.INJECTED_FORECAST_DATA) {
-          activeTimes = window.INJECTED_FORECAST_DATA.times || [];
+          activeTimes = (window.INJECTED_FORECAST_DATA.times || []).filter(t => parseTS(t) >= nextHour);
         } else {
           activeTimes = [];
         }
+        activeTimeIdx = 0;
       } else {
         activeTimes = [];
+        activeTimeIdx = 0;
       }
-      activeTimeIdx = activeTimes.length ? activeTimes.length - 1 : 0;
+      
       renderTimeSelector();
     }
 

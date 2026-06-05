@@ -15,39 +15,39 @@ _ROOT = os.path.dirname(_THIS_DIR)
 
 _DIRS = {
     "historic": os.path.join(_ROOT, "data", "raw", "historic"),
-    "current":  os.path.join(_ROOT, "data", "raw", "current"),
-    "future":   os.path.join(_ROOT, "data", "raw", "future"),
+    "current": os.path.join(_ROOT, "data", "raw", "current"),
+    "future": os.path.join(_ROOT, "data", "raw", "future"),
     "processed_historic": os.path.join(_ROOT, "data", "processed"),
     "processed_forecast": os.path.join(_ROOT, "data", "processed", "forecast"),
 }
 
 _CLR = {
-    "primary":  "#4A90D9",
-    "rain":     "#2196F3",
-    "no_rain":  "#FF9800",
-    "temp":     "#E53935",
+    "primary": "#4A90D9",
+    "rain": "#2196F3",
+    "no_rain": "#FF9800",
+    "temp": "#E53935",
     "humidity": "#43A047",
-    "wind":     "#8E24AA",
+    "wind": "#8E24AA",
     "pressure": "#00838F",
-    "cloud":    "#78909C",
+    "cloud": "#78909C",
 }
 
 _COLS = ["Temperature", "Humidity", "Wind_Speed", "Cloud_Cover", "Pressure", "Rain"]
 _COL_COLORS = {
     "Temperature": _CLR["temp"],
-    "Humidity":    _CLR["humidity"],
-    "Wind_Speed":  _CLR["wind"],
+    "Humidity": _CLR["humidity"],
+    "Wind_Speed": _CLR["wind"],
     "Cloud_Cover": _CLR["cloud"],
-    "Pressure":    _CLR["pressure"],
-    "Rain":        _CLR["rain"],
+    "Pressure": _CLR["pressure"],
+    "Rain": _CLR["rain"],
 }
 _COL_UNITS = {
     "Temperature": "°C",
-    "Humidity":    "%",
-    "Wind_Speed":  "km/h",
+    "Humidity": "%",
+    "Wind_Speed": "km/h",
     "Cloud_Cover": "%",
-    "Pressure":    "hPa",
-    "Rain":        "(0/1)",
+    "Pressure": "hPa",
+    "Rain": "(0/1)",
 }
 
 
@@ -93,17 +93,19 @@ def _make_dummy_current(n: int = 400) -> pd.DataFrame:
     lons = np.linspace(106.33, 106.77, 20)
     lat_grid, lon_grid = np.meshgrid(lats, lons)
     now = datetime.now()
-    df = pd.DataFrame({
-        "Fetch_Time":  now.strftime("%Y-%m-%d %H:%M:%S"),
-        "Latitude":    lat_grid.ravel(),
-        "Longitude":   lon_grid.ravel(),
-        "Temperature": rng.uniform(24, 34, n),
-        "Humidity":    rng.uniform(55, 95, n),
-        "Wind_Speed":  rng.uniform(0, 25, n),
-        "Cloud_Cover": rng.uniform(0, 100, n),
-        "Pressure":    rng.uniform(1005, 1015, n),
-        "Rain":        rng.integers(0, 2, n),
-    })
+    df = pd.DataFrame(
+        {
+            "Fetch_Time": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "Latitude": lat_grid.ravel(),
+            "Longitude": lon_grid.ravel(),
+            "Temperature": rng.uniform(24, 34, n),
+            "Humidity": rng.uniform(55, 95, n),
+            "Wind_Speed": rng.uniform(0, 25, n),
+            "Cloud_Cover": rng.uniform(0, 100, n),
+            "Pressure": rng.uniform(1005, 1015, n),
+            "Rain": rng.integers(0, 2, n),
+        }
+    )
     df["_time"] = pd.to_datetime(df["Fetch_Time"])
     return df
 
@@ -114,15 +116,19 @@ def _make_dummy_historic(n_snapshots: int = 40) -> pd.DataFrame:
     base = pd.Timestamp("2025-01-01 06:00")
     for i in range(n_snapshots):
         ts = base + pd.Timedelta(hours=i * 6)
-        rows.append({
-            "Fetch_Time":  ts,
-            "Temperature": 27 + 4 * np.sin(i * 0.4) + rng.normal(0, 0.8),
-            "Humidity":    75 + 12 * np.cos(i * 0.3) + rng.normal(0, 2),
-            "Wind_Speed":  abs(8 + 5 * np.sin(i * 0.2) + rng.normal(0, 1)),
-            "Cloud_Cover": np.clip(50 + 30 * np.sin(i * 0.5) + rng.normal(0, 5), 0, 100),
-            "Pressure":    1010 + 2 * np.sin(i * 0.15) + rng.normal(0, 0.3),
-            "Rain":        int(rng.random() < (0.4 + 0.3 * np.sin(i * 0.5))),
-        })
+        rows.append(
+            {
+                "Fetch_Time": ts,
+                "Temperature": 27 + 4 * np.sin(i * 0.4) + rng.normal(0, 0.8),
+                "Humidity": 75 + 12 * np.cos(i * 0.3) + rng.normal(0, 2),
+                "Wind_Speed": abs(8 + 5 * np.sin(i * 0.2) + rng.normal(0, 1)),
+                "Cloud_Cover": np.clip(
+                    50 + 30 * np.sin(i * 0.5) + rng.normal(0, 5), 0, 100
+                ),
+                "Pressure": 1010 + 2 * np.sin(i * 0.15) + rng.normal(0, 0.3),
+                "Rain": int(rng.random() < (0.4 + 0.3 * np.sin(i * 0.5))),
+            }
+        )
     df = pd.DataFrame(rows)
     df["_time"] = pd.to_datetime(df["Fetch_Time"])
     return df
@@ -134,15 +140,19 @@ def _make_dummy_future(n: int = 24) -> pd.DataFrame:
     rows = []
     for i in range(n):
         ts = base + pd.Timedelta(hours=i)
-        rows.append({
-            "Forecast_Time": ts,
-            "Temperature":   28 + 3 * np.sin(i * 0.4) + rng.normal(0, 0.5),
-            "Humidity":      72 + 10 * np.cos(i * 0.35) + rng.normal(0, 1.5),
-            "Wind_Speed":    abs(7 + 4 * np.sin(i * 0.25) + rng.normal(0, 0.8)),
-            "Cloud_Cover":   np.clip(45 + 25 * np.sin(i * 0.5) + rng.normal(0, 4), 0, 100),
-            "Pressure":      1009 + 1.5 * np.sin(i * 0.2) + rng.normal(0, 0.2),
-            "Rain":          int(rng.random() < 0.35),
-        })
+        rows.append(
+            {
+                "Forecast_Time": ts,
+                "Temperature": 28 + 3 * np.sin(i * 0.4) + rng.normal(0, 0.5),
+                "Humidity": 72 + 10 * np.cos(i * 0.35) + rng.normal(0, 1.5),
+                "Wind_Speed": abs(7 + 4 * np.sin(i * 0.25) + rng.normal(0, 0.8)),
+                "Cloud_Cover": np.clip(
+                    45 + 25 * np.sin(i * 0.5) + rng.normal(0, 4), 0, 100
+                ),
+                "Pressure": 1009 + 1.5 * np.sin(i * 0.2) + rng.normal(0, 0.2),
+                "Rain": int(rng.random() < 0.35),
+            }
+        )
     df = pd.DataFrame(rows)
     df["_time"] = pd.to_datetime(df["Forecast_Time"])
     return df
@@ -150,17 +160,17 @@ def _make_dummy_future(n: int = 24) -> pd.DataFrame:
 
 def _summary_metrics(df: pd.DataFrame) -> None:
     items = [
-        ("Avg Temp",     "Temperature", "°C",  False),
-        ("Avg Humidity", "Humidity",    "%",   False),
-        ("Avg Wind",     "Wind_Speed",  "km/h",False),
-        ("Avg Cloud",    "Cloud_Cover", "%",   False),
-        ("Rain Rate",    "Rain",        "",    True),
+        ("Avg Temp", "Temperature", "°C", False),
+        ("Avg Humidity", "Humidity", "%", False),
+        ("Avg Wind", "Wind_Speed", "km/h", False),
+        ("Avg Cloud", "Cloud_Cover", "%", False),
+        ("Rain Rate", "Rain", "", True),
     ]
     mcols = st.columns(len(items))
     for mc, (label, col, unit, pct) in zip(mcols, items):
         if col in df.columns:
             val = df[col].mean()
-            mc.metric(label, f"{val*100:.1f}%" if pct else f"{val:.1f} {unit}")
+            mc.metric(label, f"{val * 100:.1f}%" if pct else f"{val:.1f} {unit}")
         else:
             mc.metric(label, "N/A")
 
@@ -177,10 +187,12 @@ def _rain_bar(df: pd.DataFrame, container) -> None:
     if "Rain" not in df.columns:
         return
     counts = df["Rain"].value_counts().sort_index()
-    bar_df = pd.DataFrame({
-        "Condition": [("No Rain" if k == 0 else "Rain") for k in counts.index],
-        "Count":     counts.values,
-    })
+    bar_df = pd.DataFrame(
+        {
+            "Condition": [("No Rain" if k == 0 else "Rain") for k in counts.index],
+            "Count": counts.values,
+        }
+    )
     container.bar_chart(bar_df.set_index("Condition"), color=_CLR["rain"])
 
 
@@ -189,7 +201,12 @@ def _rain_by_hour_line(df: pd.DataFrame, container) -> None:
         return
     tmp = df.copy()
     tmp["Hour"] = tmp["_time"].dt.hour
-    grouped = tmp.groupby("Hour")["Rain"].mean().reindex(range(24), fill_value=0).reset_index()
+    grouped = (
+        tmp.groupby("Hour")["Rain"]
+        .mean()
+        .reindex(range(24), fill_value=0)
+        .reset_index()
+    )
     grouped.columns = ["Hour", "Rain Probability (%)"]
     grouped["Rain Probability (%)"] = (grouped["Rain Probability (%)"] * 100).round(1)
     container.line_chart(grouped.set_index("Hour"), color=_CLR["rain"])
@@ -223,11 +240,15 @@ def _forecast_rain_timeseries(df: pd.DataFrame, container) -> None:
         return
     tmp = df.copy()
     tmp["Hour"] = tmp["_time"].dt.floor("h")
-    grouped = tmp.groupby("Hour").agg(
-        Rain_Rate=("Rain", "mean"),
-        Rainy_Points=("Rain", "sum"),
-        Total_Points=("Rain", "count"),
-    ).reset_index()
+    grouped = (
+        tmp.groupby("Hour")
+        .agg(
+            Rain_Rate=("Rain", "mean"),
+            Rainy_Points=("Rain", "sum"),
+            Total_Points=("Rain", "count"),
+        )
+        .reset_index()
+    )
     grouped["Rain Rate (%)"] = (grouped["Rain_Rate"] * 100).round(1)
 
     container.markdown("**Rain Rate Over Forecast Window (% of grid points)**")
@@ -279,7 +300,8 @@ def _section_current() -> None:
     _feature_stats_table(df, st)
 
     _export_expander(
-        df, "Current",
+        df,
+        "Current",
         f"tangerangcast_current_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
     )
     st.divider()
@@ -300,8 +322,10 @@ def _section_historic() -> None:
     st.markdown("**Variable Trends Over Time**")
     t1, t2 = st.columns(2)
     for feat, container in [
-        ("Temperature", t1), ("Humidity", t2),
-        ("Wind_Speed",  t1), ("Cloud_Cover", t2),
+        ("Temperature", t1),
+        ("Humidity", t2),
+        ("Wind_Speed", t1),
+        ("Cloud_Cover", t2),
     ]:
         container.markdown(f"*{feat} ({_COL_UNITS[feat]})*")
         _time_series(df, feat, container)
@@ -313,7 +337,8 @@ def _section_historic() -> None:
     _correlation_table(df, st)
 
     _export_expander(
-        df, "Historic",
+        df,
+        "Historic",
         f"tangerangcast_historic_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
     )
     st.divider()
@@ -334,8 +359,10 @@ def _section_future() -> None:
     st.markdown("**Forecast Variable Trends**")
     fc1, fc2 = st.columns(2)
     for feat, container in [
-        ("Temperature", fc1), ("Humidity", fc2),
-        ("Cloud_Cover", fc1), ("Wind_Speed", fc2),
+        ("Temperature", fc1),
+        ("Humidity", fc2),
+        ("Cloud_Cover", fc1),
+        ("Wind_Speed", fc2),
     ]:
         container.markdown(f"*{feat} ({_COL_UNITS[feat]})*")
         _time_series(df, feat, container)
@@ -343,7 +370,8 @@ def _section_future() -> None:
     _forecast_rain_timeseries(df, st)
 
     _export_expander(
-        df, "Forecast",
+        df,
+        "Forecast",
         f"tangerangcast_forecast_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
     )
     st.divider()
@@ -354,9 +382,9 @@ def _section_bulk_export() -> None:
     st.caption("Select individual files to include, then download as a ZIP.")
 
     tier_map = {
-        "current":  "Current",
+        "current": "Current",
         "historic": "Historic",
-        "future":   "Forecast",
+        "future": "Forecast",
     }
 
     all_files: list[dict] = []
@@ -412,9 +440,9 @@ with st.sidebar:
     st.markdown("Explore weather trends and export raw data from each pipeline tier.")
     st.divider()
     st.markdown("**Show Sections**")
-    show_current  = st.checkbox("Current Snapshot",  value=True)
-    show_historic = st.checkbox("Historic Trends",   value=True)
-    show_future   = st.checkbox("Forecast Trends",   value=True)
+    show_current = st.checkbox("Current Snapshot", value=True)
+    show_historic = st.checkbox("Historic Trends", value=True)
+    show_future = st.checkbox("Forecast Trends", value=True)
     st.divider()
     st.info(
         "Note: Sections without real data display dummy visualisations "
@@ -430,9 +458,10 @@ st.divider()
 
 with st.expander("Data Availability", expanded=True):
     bcols = st.columns(3)
-    for col, (tier, label) in zip(bcols, [
-        ("current", "Current"), ("historic", "Historic"), ("future", "Forecast")
-    ]):
+    for col, (tier, label) in zip(
+        bcols,
+        [("current", "Current"), ("historic", "Historic"), ("future", "Forecast")],
+    ):
         paths = _list_csvs(_DIRS.get(tier, ""))
         if paths:
             col.success(f"**{label}** — {len(paths)} file(s)")

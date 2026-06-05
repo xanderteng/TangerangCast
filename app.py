@@ -2,17 +2,17 @@ import streamlit as st
 
 
 def show_home():
-    st.title("Tangerang Rain Prediction Dashboard 🌧️")
+    st.title("TangerangCast: Rain Prediction Dashboard 🌧️")
 
     st.markdown("""
-    Welcome to the **Tangerang Rain Prediction Dashboard**!
+    Welcome to **TangerangCast**!
     
-    This application leverages machine learning (XGBoost) to provide predictions for rainfall in the Tangerang area.
+    This application leverages an advanced Stacking Ensemble machine learning architecture to provide highly accurate predictions for rainfall across the Tangerang area.
     
     ### Navigation
     Please use the sidebar to navigate to the specific modules:
-    - **Live Map**: View the current and future predictions on a geospatial map.
-    - **Data Insight**: Explore the underlying historical data and model performance metrics.
+    - **Live Map**: View current and future predictions on an interactive geospatial grid.
+    - **Data Insight**: Explore underlying historical data, model performance metrics, and feature importance.
     """)
 
 
@@ -21,7 +21,7 @@ home_page = st.Page(show_home, title="App", icon="🏠", default=True)
 live_map_page = st.Page("pages/live_map.py", title="Live Map", icon="🗺️")
 data_insight_page = st.Page("pages/data_insight.py", title="Data Insight", icon="📊")
 
-st.set_page_config(page_title="Tangerang Rain Prediction", page_icon="🌧️", layout="wide")
+st.set_page_config(page_title="TangerangCast", page_icon="🌧️", layout="wide")
 
 # Initialize navigation
 pg = st.navigation([home_page, live_map_page, data_insight_page])

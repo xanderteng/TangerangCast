@@ -1,0 +1,61 @@
+name: TangerangCast Continuous Training Pipeline
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight
+  workflow_dispatch:
+
+jobs:
+  weekly-training:
+    name: Weekly Model Retrain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Data Sync Step 1 - Historical Baseline
+        run: |
+          mkdir -p data/processed
+          curl -L -o data/processed/ProcessedHistoric.csv "https://drive.google.com/uc?export=download&id=1g1nJqyDtjmEx7qddkT4woSL2Rz_oah5E"
+
+      - name: Data Sync Step 2 - Pull Live Data from VPS
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+          mkdir -p data/raw/current
+          scp -r $SSH_USER@$SSH_HOST:~/TangerangCast/data/raw/current/* data/raw/current/
+
+      - name: Execute Training
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          python src/train.py
+
+      - name: Ship Models
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "models/*.onnx"
+          target: "~/TangerangCast/models/"
+          strip_components: 1
+
+
