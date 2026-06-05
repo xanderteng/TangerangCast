@@ -2,7 +2,7 @@ name: TangerangCast Continuous Training Pipeline
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # Every Sunday at midnight
+    - cron: '0 0 * * 0' # Setiap hari Minggu tengah malam
   workflow_dispatch:
 
 jobs:
@@ -42,11 +42,20 @@ jobs:
           mkdir -p data/raw/current
           scp -r $SSH_USER@$SSH_HOST:~/TangerangCast/data/raw/current/* data/raw/current/
 
-      - name: Execute Training
+      - name: Execute Training (Dengan Otomatisasi SSH Tunneling MLflow)
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+          MLFLOW_TRACKING_URI: http://127.0.0.1:5000
         run: |
+          # Membuka jembatan tunnel terenkripsi ke loopback interface VPS host secara background
+          ssh -i ~/.ssh/id_rsa -M -S-control-socket -fnNT -L 5000:127.0.0.1:5000 $SSH_USER@$SSH_HOST
+          
+          # Mengeksekusi script core training machine learning
           python src/train.py
+          
+          # Menutup socket control tunnel setelah eksekusi selesai
+          ssh -S-control-socket -O exit $SSH_USER@$SSH_HOST
 
       - name: Ship Models
         uses: appleboy/scp-action@v0.1.7
@@ -57,5 +66,3 @@ jobs:
           source: "models/*.onnx"
           target: "~/TangerangCast/models/"
           strip_components: 1
-
-

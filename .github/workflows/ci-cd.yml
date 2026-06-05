@@ -109,7 +109,7 @@ jobs:
 
             # Ensure host-mapped directories are writable by container
             mkdir -p data models mlflow_data
-            chmod -R 777 data/ models/ mlflow_data/
+            sudo chmod -R 777 data/ models/ mlflow_data/
 
             # Deploy via Docker Compose
             sudo docker compose down
