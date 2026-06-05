@@ -101,13 +101,16 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 60m
           script: |
+            # IPv4 precedence fix — safely uncomment the line instead of overwriting
+            sudo sed -i 's/^#\s*\(precedence\s\+::ffff:0:0\/96\s\+100\)/\1/' /etc/gai.conf
+
             cd ~/TangerangCast
             git pull origin main
-            sudo docker build -t tangerangcast .
-            sudo docker stop tangerangcast-prod || true
-            sudo docker rm tangerangcast-prod || true
-            sudo docker run -d --name tangerangcast-prod \
-              -p 8501:8501 \
-              -v ~/TangerangCast/data:/app/data \
-              -v ~/TangerangCast/models:/app/models \
-              --restart always tangerangcast
+
+            # Ensure host-mapped directories are writable by container
+            mkdir -p data models mlflow_data
+            chmod -R 777 data/ models/ mlflow_data/
+
+            # Deploy via Docker Compose
+            sudo docker compose down
+            sudo docker compose up -d --build

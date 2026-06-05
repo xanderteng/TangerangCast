@@ -80,10 +80,33 @@ def _parse_time_col(df: pd.DataFrame) -> pd.DataFrame:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _load_tier(tier: str) -> pd.DataFrame | None:
-    paths = _list_csvs(_DIRS.get(tier, ""))
-    df = _load_concat(paths)
-    if df is not None:
+    directory = _DIRS.get(tier, "")
+    paths = _list_csvs(directory)
+
+    # Forecast tiers: use only the latest file to keep memory low
+    if tier in ("future", "processed_forecast"):
+        if not paths:
+            return None
+        latest = max(paths, key=os.path.getmtime)
+        try:
+            df = pd.read_csv(latest)
+        except Exception:
+            return None
         df = _parse_time_col(df)
+        return df
+
+    df = _load_concat(paths)
+    if df is None:
+        return df
+
+    df = _parse_time_col(df)
+
+    # Historic / current tiers: apply 48-hour rolling window
+    if tier in ("historic", "current") and "_time" in df.columns:
+        max_ts = df["_time"].max()
+        cutoff = max_ts - pd.Timedelta(hours=48)
+        df = df[df["_time"] >= cutoff].reset_index(drop=True)
+
     return df
 
 

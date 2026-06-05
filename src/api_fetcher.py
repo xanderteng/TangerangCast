@@ -29,7 +29,7 @@ class APIFetcher:
     def _fetch_with_retries(self, url, max_retries=5):
         for attempt in range(max_retries):
             try:
-                response = requests.get(url, timeout=15)
+                response = requests.get(url, timeout=60)
 
                 if response.status_code == 429:
                     raise requests.exceptions.RequestException(

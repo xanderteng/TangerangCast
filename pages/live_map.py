@@ -135,19 +135,42 @@ def _build_payload(csv_path: str, polygon: list[list[float]]) -> dict:
 
 
 def _build_historic_payloads(polygon: list[list[float]]) -> dict:
-    """Read all CSVs in current directory, sort them, and return grouped payloads."""
+    """Read CSVs in current directory within a 48-hour rolling window and return grouped payloads."""
     pattern = os.path.join(_CURRENT_DATA_DIR, "*.csv")
     csv_paths = glob.glob(pattern)
+    if not csv_paths:
+        return {"times": [], "data": {}}
+
     csv_paths.sort()  # Sort chronologically
 
-    # Limit to the last 50 snapshots to keep performance fast and light
-    csv_paths = csv_paths[-50:]
+    # Determine the latest timestamp across all files to anchor the 48h window
+    latest_ts = None
+    for path in reversed(csv_paths):
+        try:
+            df_peek = pd.read_csv(path, usecols=["Fetch_Time"], nrows=1)
+            ts = pd.to_datetime(df_peek["Fetch_Time"].iloc[0])
+            if latest_ts is None or ts > latest_ts:
+                latest_ts = ts
+                break  # Files are sorted; the last one is newest
+        except Exception:
+            continue
+
+    if latest_ts is None:
+        return {"times": [], "data": {}}
+
+    cutoff = latest_ts - pd.Timedelta(hours=48)
 
     times = []
     data = {}
 
     for path in csv_paths:
         try:
+            # Quick timestamp check before building full payload
+            df_peek = pd.read_csv(path, usecols=["Fetch_Time"], nrows=1)
+            ts = pd.to_datetime(df_peek["Fetch_Time"].iloc[0])
+            if ts < cutoff:
+                continue
+
             payload = _build_payload(path, polygon)
             fetch_time = payload.get("fetch_time")
             if fetch_time:
@@ -163,7 +186,12 @@ def _build_historic_payloads(polygon: list[list[float]]) -> dict:
 
 
 def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
-    """Read the latest future weather CSV and final ONNX forecast predictions, and return payloads."""
+    """Read the latest future weather CSV and latest ONNX forecast predictions, and return payloads.
+
+    Only the single most recent forecast file is used to keep the
+    injected JSON payload small (~260 points per timeslice) and
+    prevent the browser from stalling on page load.
+    """
     raw_future_csv = _find_latest_csv(_FUTURE_DATA_DIR)
     forecast_csv = _find_latest_csv(_FORECAST_DATA_DIR)
 
