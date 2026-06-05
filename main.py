@@ -1,6 +1,8 @@
 import os
 import glob
 import time
+import gc
+from datetime import datetime, timedelta
 from src.api_fetcher import APIFetcher
 from src.preprocessor import preprocess_future_data
 from src.inference import run_onnx_inference
@@ -15,13 +17,12 @@ def get_latest_raw_future_file():
         return None, None
     latest_file = max(files, key=os.path.getmtime)
     basename = os.path.basename(latest_file)
-    # Extracts timestamp YYYYMMDD_HHMM from future_YYYYMMDD_HHMM.csv
     timestamp = basename.replace("future_", "").replace(".csv", "")
     return latest_file, timestamp
 
 
 def run_pipeline_iteration(fetch_future=True):
-    """Execute one full pass of the data pipeline: fetch -> preprocess -> predict."""
+    """Execute one full pass of the data pipeline with aggressive memory cleanup."""
     fetcher = APIFetcher()
 
     print("\n" + "=" * 50)
@@ -67,15 +68,21 @@ def run_pipeline_iteration(fetch_future=True):
     else:
         print("[PIPELINE] Skipping future grid fetch and ML inference for this hour.")
 
+    # Bersihkan objek besar dari memori lokal fungsi
+    if 'fetcher' in locals():
+        del fetcher
+    if 'df_future' in locals():
+        del df_future
+    
+    # Paksa Python mengembalikan RAM ke OS secepatnya
+    gc.collect()
+
 
 def sleep_until_next_hour():
     """Sleep until the start of the next hour (minute 00:00) with a small buffer."""
-    from datetime import datetime, timedelta
-
     now = datetime.now()
     next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     sleep_seconds = (next_hour - now).total_seconds()
-    # Add a 1-second buffer to ensure we wake up after the hour mark starts
     time.sleep(sleep_seconds + 1.0)
 
 
@@ -84,23 +91,27 @@ def main():
     print("         TangerangCast Machine Learning Pipeline")
     print("==================================================")
 
-    # Run a full iteration (including future predictions) immediately on startup
+    # Jalankan iterasi awal saat startup
     run_pipeline_iteration(fetch_future=True)
+    
+    # Bersihkan sisa RAM setelah proses startup selesai sebelum user masuk ke web
+    gc.collect()
 
     current_timer = 0
     print("\nAuto-pipeline scheduler started. Press CTRL+C to stop.")
     try:
         while True:
-            # Sleep until the next hour mark (00:00)
             sleep_until_next_hour()
             current_timer += 1
 
-            # Fetch current grid hourly, and execute future ML forecasts every 6 hours
             if current_timer >= 6:
                 run_pipeline_iteration(fetch_future=True)
                 current_timer = 0
             else:
                 run_pipeline_iteration(fetch_future=False)
+                
+            # Selalu bersihkan memori di setiap loop tidur
+            gc.collect()
 
     except KeyboardInterrupt:
         print("\nScheduler stopped cleanly.")
