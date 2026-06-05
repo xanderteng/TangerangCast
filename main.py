@@ -69,11 +69,11 @@ def run_pipeline_iteration(fetch_future=True):
         print("[PIPELINE] Skipping future grid fetch and ML inference for this hour.")
 
     # Bersihkan objek besar dari memori lokal fungsi
-    if 'fetcher' in locals():
+    if "fetcher" in locals():
         del fetcher
-    if 'df_future' in locals():
+    if "df_future" in locals():
         del df_future
-    
+
     # Paksa Python mengembalikan RAM ke OS secepatnya
     gc.collect()
 
@@ -93,7 +93,7 @@ def main():
 
     # Jalankan iterasi awal saat startup
     run_pipeline_iteration(fetch_future=True)
-    
+
     # Bersihkan sisa RAM setelah proses startup selesai sebelum user masuk ke web
     gc.collect()
 
@@ -109,7 +109,7 @@ def main():
                 current_timer = 0
             else:
                 run_pipeline_iteration(fetch_future=False)
-                
+
             # Selalu bersihkan memori di setiap loop tidur
             gc.collect()
 
