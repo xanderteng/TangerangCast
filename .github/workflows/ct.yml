@@ -49,7 +49,7 @@ jobs:
           MLFLOW_TRACKING_URI: http://127.0.0.1:5000
         run: |
           # Membuka jembatan tunnel terenkripsi ke loopback interface VPS host secara background
-          ssh -i ~/.ssh/id_rsa -M -S-control-socket -fnNT -L 5000:127.0.0.1:5000 $SSH_USER@$SSH_HOST
+          ssh -i ~/.ssh/id_rsa -o ServerAliveInterval=30 -M -S-control-socket -fnNT -L 5000:127.0.0.1:5000 $SSH_USER@$SSH_HOST
           
           # Mengeksekusi script core training machine learning
           python src/train.py
