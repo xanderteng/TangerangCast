@@ -21,7 +21,6 @@ HISTORIC_LOCATIONS = [
 
 
 def _get_fitted_models():
-    """Load historical weather data to fit StandardScaler and PowerTransformer."""
     global _SCALER, _PT
     if _SCALER is None or _PT is None:
         # Find historical data path relative to this file
@@ -56,7 +55,6 @@ def _get_fitted_models():
 
 
 def _assign_nearest_location_encoded(df: pd.DataFrame) -> None:
-    """Vectorized mapping of future coordinates to nearest historical location code."""
     lats = df["Latitude"].values
     lons = df["Longitude"].values
     best_dists = np.full(len(df), float("inf"))
@@ -72,10 +70,6 @@ def _assign_nearest_location_encoded(df: pd.DataFrame) -> None:
 
 
 def preprocess_future_data(file_path: str, file_timestamp: str) -> str:
-    """Preprocess raw future weather forecasts using temporal cyclical encoding and baseline scaling.
-
-    Saves the output to data/processed/future/future_<timestamp>.csv.
-    """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Raw future data file not found: {file_path}")
 
@@ -162,7 +156,6 @@ def preprocess_future_data(file_path: str, file_timestamp: str) -> str:
 
 
 def _cleanup_old_processed_files(folder_path: str, keep_last: int = 720) -> None:
-    """Scan and delete oldest processed future weather CSV snapshots."""
     pattern = os.path.join(folder_path, "future_*.csv")
     files = glob.glob(pattern)
 

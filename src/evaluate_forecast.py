@@ -14,7 +14,6 @@ from sklearn.metrics import (
 
 
 def get_latest_csv(directory: str, pattern: str = "*.csv") -> str | None:
-    """Find the latest CSV file by modification time in the specified directory."""
     files = glob.glob(os.path.join(directory, pattern))
     if not files:
         return None
@@ -22,7 +21,6 @@ def get_latest_csv(directory: str, pattern: str = "*.csv") -> str | None:
 
 
 def evaluate_latest_forecast():
-    """Evaluate final ONNX Stacking predictions against Open-Meteo future forecast baseline."""
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     future_dir = os.path.join(project_root, "data", "raw", "future")
     forecast_dir = os.path.join(project_root, "data", "processed", "forecast")
@@ -111,7 +109,6 @@ def evaluate_latest_forecast():
 
 
 def evaluate_forecast_vs_current():
-    """Evaluate final ONNX Stacking predictions against actual hourly weather observations."""
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     current_dir = os.path.join(project_root, "data", "raw", "current")
     forecast_dir = os.path.join(project_root, "data", "processed", "forecast")
@@ -296,37 +293,31 @@ def evaluate_forecast_vs_current():
 
     print("\n[INFO] Mengirim metrik pemantauan harian ke MLflow...")
     try:
-        mlflow.set_tracking_uri("http://127.0.0.1:5000")
+        mlflow.set_tracking_uri("http://mlflow:5000")
         mlflow.set_experiment("TangerangCast-Monitoring")
+
         run_name = f"Daily-Eval-{datetime.now().strftime('%Y-%m-%d')}"
+        roc_val = roc_auc if "roc_auc" in locals() else 0.0
 
         with mlflow.start_run(run_name=run_name):
-            mlflow.log_metric("accuracy", accuracy)
-            mlflow.log_metric("precision", precision)
-            mlflow.log_metric("recall", recall)
-            mlflow.log_metric("f1_score", f1)
-
-            if len(np.unique(y_true)) > 1:
-                mlflow.log_metric("roc_auc", roc_auc)
-
-            mlflow.log_metric("true_positives", tp)
-            mlflow.log_metric("false_positives", fp)
-            mlflow.log_metric("false_negatives", fn)
-            mlflow.log_metric("true_negatives", tn)
-
-            # ------------------------------------------
-            # MODEL DRIFT TRACKING RECOMMENDATIONS
-            # ------------------------------------------
             total_points = len(y_true)
             rain_prevalence_true = (tp + fn) / total_points if total_points > 0 else 0.0
             rain_prevalence_pred = (tp + fp) / total_points if total_points > 0 else 0.0
             prevalence_drift = abs(rain_prevalence_true - rain_prevalence_pred)
 
+            mlflow.log_metric("accuracy", accuracy)
+            mlflow.log_metric("precision", precision)
+            mlflow.log_metric("recall", recall)
+            mlflow.log_metric("f1_score", f1)
+            mlflow.log_metric("roc_auc", roc_val)
+            mlflow.log_metric("true_positives", tp)
+            mlflow.log_metric("false_positives", fp)
+            mlflow.log_metric("false_negatives", fn)
+            mlflow.log_metric("true_negatives", tn)
             mlflow.log_metric("rain_prevalence_true", rain_prevalence_true)
             mlflow.log_metric("rain_prevalence_pred", rain_prevalence_pred)
             mlflow.log_metric("prevalence_drift", prevalence_drift)
             mlflow.log_metric("total_evaluated_points", total_points)
-
             mlflow.log_artifact(report_path)
 
         print("[SUCCESS] Metrik pemantauan berhasil dicatat di MLflow.")

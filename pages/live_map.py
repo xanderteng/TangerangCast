@@ -1,12 +1,3 @@
-"""
-pages/live_map.py — Streamlit page that renders the Leaflet map.
-
-Reads the latest current weather CSV from data/raw/current/,
-normalizes columns to match the JavaScript expectations,
-injects the data as window.INJECTED_CURRENT_DATA into the
-live HTML, and renders it via st.components.v1.html.
-"""
-
 import glob
 import json
 import os
@@ -42,7 +33,6 @@ _COLUMN_MAP = {
 
 
 def _find_latest_csv(directory: str) -> str | None:
-    """Return the path to the most recently modified CSV in *directory*."""
     pattern = os.path.join(directory, "*.csv")
     files = glob.glob(pattern)
     if not files:
@@ -51,7 +41,6 @@ def _find_latest_csv(directory: str) -> str | None:
 
 
 def _clean_value(value):
-    """Convert pandas/numpy values to JSON-safe Python primitives."""
     if pd.isna(value):
         return None
     if hasattr(value, "item"):
@@ -60,7 +49,6 @@ def _clean_value(value):
 
 
 def _load_border_polygon() -> tuple[dict, list[list[float]]]:
-    """Load the geojson and extract the polygon coordinates."""
     with open(_BORDER_GEOJSON, encoding="utf-8") as f:
         geojson = json.load(f)
     polygon = geojson["features"][0]["geometry"]["coordinates"][0]
@@ -68,7 +56,6 @@ def _load_border_polygon() -> tuple[dict, list[list[float]]]:
 
 
 def _is_point_in_polygon(lat: float, lon: float, polygon: list[list[float]]) -> bool:
-    """Ray-casting algorithm to determine if a point (lat, lon) is inside a polygon."""
     if lat is None or lon is None:
         return False
     inside = False
@@ -88,7 +75,6 @@ def _is_point_in_polygon(lat: float, lon: float, polygon: list[list[float]]) -> 
 
 
 def _build_payload(csv_path: str, polygon: list[list[float]]) -> dict:
-    """Read a current-weather CSV, filter by polygon boundary, and return the JS-expected payload dict."""
     df = pd.read_csv(csv_path)
     df = df.rename(columns=_COLUMN_MAP)
 
@@ -135,7 +121,6 @@ def _build_payload(csv_path: str, polygon: list[list[float]]) -> dict:
 
 
 def _build_historic_payloads(polygon: list[list[float]]) -> dict:
-    """Read CSVs in current directory within a 48-hour rolling window and return grouped payloads."""
     pattern = os.path.join(_CURRENT_DATA_DIR, "*.csv")
     csv_paths = glob.glob(pattern)
     if not csv_paths:
@@ -186,12 +171,6 @@ def _build_historic_payloads(polygon: list[list[float]]) -> dict:
 
 
 def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
-    """Read the latest future weather CSV and latest ONNX forecast predictions, and return payloads.
-
-    Only the single most recent forecast file is used to keep the
-    injected JSON payload small (~260 points per timeslice) and
-    prevent the browser from stalling on page load.
-    """
     raw_future_csv = _find_latest_csv(_FUTURE_DATA_DIR)
     forecast_csv = _find_latest_csv(_FORECAST_DATA_DIR)
 
@@ -287,7 +266,6 @@ def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
 def _inject_and_render(
     payload: dict, geojson_data: dict, historic_payloads: dict, forecast_payloads: dict
 ) -> None:
-    """Read the live HTML, inject all payloads & border GeoJSON, and render via Streamlit."""
     with open(_LIVE_MAP_HTML, encoding="utf-8") as f:
         html = f.read()
 

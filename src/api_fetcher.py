@@ -48,7 +48,6 @@ class APIFetcher:
 
     @classmethod
     def _load_polygon(cls) -> list[list[float]]:
-        """Load the Tangerang border polygon coordinates from the GeoJSON file."""
         with open(cls._BORDER_GEOJSON, encoding="utf-8") as f:
             geojson = json.load(f)
         return geojson["features"][0]["geometry"]["coordinates"][0]
@@ -57,7 +56,6 @@ class APIFetcher:
     def _is_point_in_polygon(
         lat: float, lon: float, polygon: list[list[float]]
     ) -> bool:
-        """Ray-casting algorithm to determine if a point (lat, lon) is inside a polygon."""
         if lat is None or lon is None:
             return False
         inside = False

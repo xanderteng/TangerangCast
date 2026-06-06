@@ -7,9 +7,6 @@ import gc
 
 
 def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
-    """Run decoupled ONNX models (XGB, LGBM, CatBoost) and Logistic Stacking Meta-model
-    sequentially to save memory on 1GB RAM VPS.
-    """
     if not os.path.exists(processed_file_path):
         raise FileNotFoundError(
             f"Preprocessed future file not found: {processed_file_path}"
@@ -124,7 +121,6 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
 
 
 def _cleanup_old_forecast_files(folder_path: str, keep_last: int = 720) -> None:
-    """Scan and delete oldest forecast prediction CSV snapshots."""
     pattern = os.path.join(folder_path, "forecast_*.csv")
     files = glob.glob(pattern)
 

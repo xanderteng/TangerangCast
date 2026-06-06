@@ -10,7 +10,6 @@ from sklearn.preprocessing import StandardScaler, PowerTransformer
 
 @pytest.fixture
 def dummy_future_csv(tmp_path):
-    """Create a temporary raw future grid CSV file for testing."""
     data = {
         "Forecast_Time": ["2026-05-28T07:00", "2026-05-28T08:00", "2026-05-28T09:00"],
         "Latitude": [-6.2427, -6.3407, -6.2226],
@@ -29,7 +28,6 @@ def dummy_future_csv(tmp_path):
 
 
 def test_preprocessor_execution(dummy_future_csv, monkeypatch, tmp_path):
-    """Test that preprocess_future_data extracts features, executes nearest location mapping, standardizes shapes, and saves the output."""
     # Pre-fit dummy StandardScaler and PowerTransformer to avoid reading historic.csv
     dummy_scaler = StandardScaler()
     dummy_pt = PowerTransformer(method="yeo-johnson")
@@ -110,7 +108,6 @@ def test_preprocessor_execution(dummy_future_csv, monkeypatch, tmp_path):
 
 
 def test_preprocessor_cleanup(tmp_path):
-    """Test that _cleanup_old_processed_files removes oldest files keeping only the requested limit."""
     # Create 5 dummy future preprocessed files in tmp_path
     for i in range(5):
         file_path = tmp_path / f"future_20260528_100{i}.csv"

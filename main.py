@@ -9,7 +9,6 @@ from src.inference import run_onnx_inference
 
 
 def get_latest_raw_future_file():
-    """Find the latest raw future weather grid CSV file and extract its timestamp."""
     project_root = os.path.dirname(os.path.abspath(__file__))
     future_dir = os.path.join(project_root, "data", "raw", "future")
     files = glob.glob(os.path.join(future_dir, "future_*.csv"))
@@ -22,7 +21,6 @@ def get_latest_raw_future_file():
 
 
 def run_pipeline_iteration(fetch_future=True):
-    """Execute one full pass of the data pipeline with aggressive memory cleanup."""
     fetcher = APIFetcher()
 
     print("\n" + "=" * 50)
@@ -79,7 +77,6 @@ def run_pipeline_iteration(fetch_future=True):
 
 
 def sleep_until_next_hour():
-    """Sleep until the start of the next hour (minute 00:00) with a small buffer."""
     now = datetime.now()
     next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     sleep_seconds = (next_hour - now).total_seconds()

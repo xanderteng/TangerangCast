@@ -206,7 +206,6 @@ def _time_series(df: pd.DataFrame, col: str, container) -> None:
 
 
 def _rain_bar(df: pd.DataFrame, container) -> None:
-    """Simple blue bar chart for rain distribution."""
     if "Rain" not in df.columns:
         return
     counts = df["Rain"].value_counts().sort_index()

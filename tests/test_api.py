@@ -4,8 +4,6 @@ from src.api_fetcher import APIFetcher
 
 
 def test_api_fetcher_initialization(tmp_path, monkeypatch):
-    """Test that APIFetcher initializes correctly, creates directories,
-    and filters grid coordinates to the Tangerang border polygon."""
     monkeypatch.chdir(tmp_path)
 
     # Copy GeoJSON asset into the sandbox so _load_polygon can find it

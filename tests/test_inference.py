@@ -46,7 +46,6 @@ class MockSession:
 
 @pytest.fixture
 def dummy_processed_csv(tmp_path):
-    """Create a temporary preprocessed future CSV file containing all 12 model features."""
     data = {
         "Timestamp": [
             "2026-05-28 00:00:00",
@@ -76,7 +75,6 @@ def dummy_processed_csv(tmp_path):
 
 
 def test_onnx_inference_execution(dummy_processed_csv, monkeypatch, tmp_path):
-    """Test that run_onnx_inference loads all 4 decoupled ONNX models and runs the stacking predictions correctly."""
     # Monkeypatch onnxruntime InferenceSession directly to use MockSession
     monkeypatch.setattr(rt, "InferenceSession", MockSession)
 
@@ -129,7 +127,6 @@ def test_onnx_inference_execution(dummy_processed_csv, monkeypatch, tmp_path):
 
 
 def test_forecast_cleanup(tmp_path):
-    """Test that _cleanup_old_forecast_files removes oldest forecast files keeping only the requested limit."""
     # Create 5 dummy forecast files in tmp_path
     for i in range(5):
         file_path = tmp_path / f"forecast_20260528_100{i}.csv"

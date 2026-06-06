@@ -85,12 +85,6 @@ HISTORIC_LOCATIONS = [
 
 
 def _get_frozen_scalers() -> tuple[StandardScaler, PowerTransformer]:
-    """Fit StandardScaler + PowerTransformer on the raw historic baseline.
-
-    These are *frozen* — they are always fitted from historic.csv so that
-    the feature distribution seen by the model stays consistent across
-    retrain cycles.
-    """
     df_hist = pd.read_csv(_HISTORIC_RAW_PATH)
     scaler = StandardScaler()
     scaled = scaler.fit_transform(df_hist[_NUMERIC_FEATURES])
@@ -100,7 +94,6 @@ def _get_frozen_scalers() -> tuple[StandardScaler, PowerTransformer]:
 
 
 def _assign_location(df: pd.DataFrame) -> pd.DataFrame:
-    """Assign the nearest historic location name and encoded ID."""
     lats = df["Latitude"].values
     lons = df["Longitude"].values
     best_dists = np.full(len(df), float("inf"))
@@ -124,9 +117,6 @@ def _preprocess_current_csvs(
     scaler: StandardScaler | None = None,
     pt: PowerTransformer | None = None,
 ) -> pd.DataFrame:
-    """Load current CSVs from the last *days* days and transform them to
-    match the ProcessedHistoric schema (17 columns).
-    """
     if scaler is None or pt is None:
         scaler, pt = _get_frozen_scalers()
 
@@ -204,9 +194,6 @@ def _apply_sliding_window(
     df_historic: pd.DataFrame,
     df_new: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Drop the oldest 7 days from *df_historic*, append *df_new*, dedupe,
-    and overwrite ProcessedHistoric.csv.
-    """
     df_historic["_ts"] = pd.to_datetime(df_historic["Timestamp"])
 
     oldest = df_historic["_ts"].min()
@@ -261,7 +248,6 @@ def _tune_base_models(
     n_iter: int = 30,
     cv: int = 3,
 ) -> tuple:
-    """Tune XGBoost, LightGBM, and CatBoost with RandomizedSearchCV."""
 
     print("\n=== Tuning XGBoost ===")
     xgb_search = RandomizedSearchCV(
@@ -351,7 +337,6 @@ def _train_stacking(
     y_val: np.ndarray,
     cv: int = 3,
 ) -> tuple:
-    """Train StackingClassifier and optimise threshold for F1."""
     from sklearn.ensemble import StackingClassifier
 
     print("\n=== Training Stacking Ensemble ===")
@@ -405,7 +390,6 @@ def _export_onnx(
     meta_model,
     n_features: int,
 ) -> list[str]:
-    """Export the 4 decoupled ONNX models to models/."""
     print("\n=== Exporting ONNX Models ===")
     os.makedirs(_MODELS_DIR, exist_ok=True)
     paths: list[str] = []
@@ -451,7 +435,6 @@ def _log_to_mlflow(
     model_paths: list[str],
     train_rows: int,
 ) -> None:
-    """Log training run to MLflow."""
     print("\n=== Logging to MLflow ===")
     tracking_uri = os.environ.get(
         "MLFLOW_TRACKING_URI",
@@ -510,7 +493,6 @@ def _log_to_mlflow(
 
 
 def main(dry_run: bool = False) -> None:
-    """Orchestrate the full weekly retrain pipeline."""
     print("=" * 60)
     print("  TangerangCast Weekly Model Retrain")
     print("=" * 60)
