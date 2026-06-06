@@ -157,7 +157,7 @@ def _make_dummy_historic(n_snapshots: int = 40) -> pd.DataFrame:
     return df
 
 
-def _make_dummy_future(n: int = 24) -> pd.DataFrame:
+def _make_dummy_future(n: int = 168) -> pd.DataFrame:
     rng = np.random.default_rng(13)
     base = pd.Timestamp.now().floor("h")
     rows = []
@@ -407,7 +407,7 @@ def _section_bulk_export() -> None:
     tier_map = {
         "current": "Current",
         "historic": "Historic",
-        "future": "Forecast",
+        "processed_forecast": "Forecast",
     }
 
     all_files: list[dict] = []

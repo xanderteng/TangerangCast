@@ -24,45 +24,51 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Data Sync Step 1 - Historical Baseline
-        run: |
-          mkdir -p data/processed
-          curl -L -o data/processed/ProcessedHistoric.csv "https://drive.google.com/uc?export=download&id=1g1nJqyDtjmEx7qddkT4woSL2Rz_oah5E"
-
-      - name: Data Sync Step 2 - Pull Live Data from VPS
+      - name: Setup SSH Key
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           SSH_HOST: ${{ secrets.VPS_HOST }}
-          SSH_USER: ${{ secrets.VPS_USER }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+
+      - name: Data Sync Step 1 - Pull Historical Baseline from VPS
+        env:
+          SSH_USER: ${{ secrets.VPS_USER }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p data/processed
+          # Mengambil baseline yang sudah terupdate dari VPS, bukan dari Google Drive
+          scp $SSH_USER@$SSH_HOST:~/TangerangCast/data/processed/ProcessedHistoric.csv data/processed/
+
+      - name: Data Sync Step 2 - Pull Live Data from VPS
+        env:
+          SSH_USER: ${{ secrets.VPS_USER }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+        run: |
           mkdir -p data/raw/current
           scp -r $SSH_USER@$SSH_HOST:~/TangerangCast/data/raw/current/* data/raw/current/
 
-      - name: Execute Training (Dengan Otomatisasi SSH Tunneling MLflow)
+      - name: Execute Training (Local MLflow Logging)
         env:
-          SSH_HOST: ${{ secrets.VPS_HOST }}
-          SSH_USER: ${{ secrets.VPS_USER }}
-          MLFLOW_TRACKING_URI: http://127.0.0.1:5000
+          MLFLOW_TRACKING_URI: file:///mlflow
         run: |
-          # Membuka jembatan tunnel terenkripsi ke loopback interface VPS host secara background
-          ssh -i ~/.ssh/id_rsa -o ServerAliveInterval=30 -M -S-control-socket -fnNT -L 5000:127.0.0.1:5000 $SSH_USER@$SSH_HOST
+          # Membuat folder lokal untuk log MLflow (tanpa SSH tunnel)
+          sudo mkdir -p /mlflow
+          sudo chmod 777 /mlflow
           
           # Mengeksekusi script core training machine learning
           python src/train.py
-          
-          # Menutup socket control tunnel setelah eksekusi selesai
-          ssh -S-control-socket -O exit $SSH_USER@$SSH_HOST
 
-      - name: Ship Models
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "models/*.onnx"
-          target: "~/TangerangCast/models/"
-          strip_components: 1
+      - name: Ship Models & Updated Historical Data to VPS
+        env:
+          SSH_USER: ${{ secrets.VPS_USER }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          # 1. Kirim model ONNX baru ke direktori models di VPS
+          scp models/*.onnx $SSH_USER@$SSH_HOST:~/TangerangCast/models/
+          
+          # 2. Kirim ProcessedHistoric.csv yang sudah diupdate oleh train.py kembali ke VPS
+          scp data/processed/ProcessedHistoric.csv $SSH_USER@$SSH_HOST:~/TangerangCast/data/processed/
