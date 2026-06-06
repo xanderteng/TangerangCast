@@ -53,7 +53,7 @@ jobs:
           import mlflow, sys
           try:
               mlflow.set_tracking_uri('http://127.0.0.1:5000')
-              mlflow.set_experiment('Preflight_Test')
+              mlflow.set_experiment('Preflight_V2')
               with mlflow.start_run():
                   with open('preflight.txt', 'w') as f:
                       f.write('artifact_ok')

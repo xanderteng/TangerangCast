@@ -458,7 +458,7 @@ def _log_to_mlflow(
         f"sqlite:///{os.path.join(_PROJECT_ROOT, 'mlruns.db')}",
     )
     mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment("TangerangCast-Retrain")
+    mlflow.set_experiment("TangerangCast-Prod")
 
     with mlflow.start_run():
         # Log metrics
