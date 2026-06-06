@@ -34,13 +34,45 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
 
+      - name: Pre-Flight Check (Test SCP & MLflow Artifacts)
+        env:
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+          MLFLOW_TRACKING_URI: http://127.0.0.1:5000
+        run: |
+          echo "1. Testing SCP Access..."
+          echo "scp_ok" > preflight.txt
+          scp preflight.txt $SSH_USER@$SSH_HOST:~/preflight.txt
+          
+          echo "2. Testing MLflow Tunnel & Artifact Upload..."
+          ssh -i ~/.ssh/id_rsa -o ServerAliveInterval=30 -M -S-control-socket -fnNT -L 5000:127.0.0.1:5000 $SSH_USER@$SSH_HOST
+          sleep 3
+          
+          # Script inline ini akan langsung CRASH jika VPS belum memakai --serve-artifacts
+          python -c "
+          import mlflow, sys
+          try:
+              mlflow.set_tracking_uri('http://127.0.0.1:5000')
+              mlflow.set_experiment('Preflight_Test')
+              with mlflow.start_run():
+                  with open('preflight.txt', 'w') as f:
+                      f.write('artifact_ok')
+                  mlflow.log_artifact('preflight.txt')
+              print('SUCCESS: MLflow and SCP are fully functional.')
+          except Exception as e:
+              print(f'PRE-FLIGHT FAILED: {e}')
+              sys.exit(1)
+          "
+          
+          # Tutup tunnel setelah testing selesai
+          ssh -S-control-socket -O exit $SSH_USER@$SSH_HOST
+
       - name: Data Sync Step 1 - Pull Historical Baseline from VPS
         env:
           SSH_USER: ${{ secrets.VPS_USER }}
           SSH_HOST: ${{ secrets.VPS_HOST }}
         run: |
           mkdir -p data/processed
-          # Mengambil baseline yang sudah terupdate dari VPS, bukan dari Google Drive
           scp $SSH_USER@$SSH_HOST:~/TangerangCast/data/processed/ProcessedHistoric.csv data/processed/
 
       - name: Data Sync Step 2 - Pull Live Data from VPS
@@ -51,24 +83,25 @@ jobs:
           mkdir -p data/raw/current
           scp -r $SSH_USER@$SSH_HOST:~/TangerangCast/data/raw/current/* data/raw/current/
 
-      - name: Execute Training (Local MLflow Logging)
+      - name: Execute Training (Dengan Otomatisasi SSH Tunneling MLflow)
         env:
-          MLFLOW_TRACKING_URI: file:///mlflow
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+          MLFLOW_TRACKING_URI: http://127.0.0.1:5000
         run: |
-          # Membuat folder lokal untuk log MLflow (tanpa SSH tunnel)
-          sudo mkdir -p /mlflow
-          sudo chmod 777 /mlflow
+          # Membuka jembatan tunnel
+          ssh -i ~/.ssh/id_rsa -o ServerAliveInterval=30 -M -S-control-socket -fnNT -L 5000:127.0.0.1:5000 $SSH_USER@$SSH_HOST
           
           # Mengeksekusi script core training machine learning
           python src/train.py
+          
+          # Menutup socket control tunnel
+          ssh -S-control-socket -O exit $SSH_USER@$SSH_HOST
 
       - name: Ship Models & Updated Historical Data to VPS
         env:
           SSH_USER: ${{ secrets.VPS_USER }}
           SSH_HOST: ${{ secrets.VPS_HOST }}
         run: |
-          # 1. Kirim model ONNX baru ke direktori models di VPS
           scp models/*.onnx $SSH_USER@$SSH_HOST:~/TangerangCast/models/
-          
-          # 2. Kirim ProcessedHistoric.csv yang sudah diupdate oleh train.py kembali ke VPS
           scp data/processed/ProcessedHistoric.csv $SSH_USER@$SSH_HOST:~/TangerangCast/data/processed/
