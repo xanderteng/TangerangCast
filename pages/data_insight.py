@@ -70,9 +70,9 @@ def _load_concat(paths: list[str]) -> pd.DataFrame | None:
 def _parse_time_col(df: pd.DataFrame) -> pd.DataFrame:
     for col in [
         "Forecast_Target_Time",
+        "Forecast_Time",
         "Fetch_Time",
         "fetch_time",
-        "Forecast_Time",
         "timestamp",
     ]:
         if col in df.columns:
@@ -264,25 +264,27 @@ def _correlation_table(df: pd.DataFrame, container) -> None:
 
 
 def _forecast_rain_timeseries(df: pd.DataFrame, container) -> None:
-    if "Rain" not in df.columns or "_time" not in df.columns:
+    rain_col = "predicted_rain" if "predicted_rain" in df.columns else "Rain"
+    if rain_col not in df.columns or "_time" not in df.columns:
         return
     tmp = df.copy()
     tmp["Hour"] = tmp["_time"].dt.floor("h")
     grouped = (
         tmp.groupby("Hour")
         .agg(
-            Rain_Rate=("Rain", "mean"),
-            Rainy_Points=("Rain", "sum"),
-            Total_Points=("Rain", "count"),
+            Rain_Rate=(rain_col, "mean"),
+            Rainy_Points=(rain_col, "sum"),
+            Total_Points=(rain_col, "count"),
         )
         .reset_index()
     )
     grouped["Rain Rate (%)"] = (grouped["Rain_Rate"] * 100).round(1)
 
-    container.markdown("**Rain Rate Over Forecast Window (% of grid points)**")
+    tag = "Prediction" if rain_col == "predicted_rain" else "Open-Meteo Baseline"
+    container.markdown(f"**Rain Rate Over Forecast Window (% of grid points) [{tag}]**")
     container.line_chart(grouped.set_index("Hour")["Rain Rate (%)"], color=_CLR["rain"])
 
-    container.markdown("**Rainy Grid Points per Forecast Hour**")
+    container.markdown(f"**Rainy Grid Points per Forecast Hour [{tag}]**")
     container.bar_chart(grouped.set_index("Hour")["Rainy_Points"], color=_CLR["rain"])
 
 
@@ -373,16 +375,20 @@ def _section_historic() -> None:
 
 
 def _section_future() -> None:
-    df = _load_tier("future")
-    dummy = df is None or df.empty
+    # Bypass streamlit cache manually by ensuring new reference
+    df_raw = _load_tier("future")
+    df_ml = _load_tier("processed_forecast")
+
+    dummy = df_raw is None or df_raw.empty
     if dummy:
-        df = _make_dummy_future()
+        df_raw = _make_dummy_future()
+        df_ml = df_raw
 
     badge = "  *(dummy — run fetcher to populate)*" if dummy else ""
     st.markdown(f"### Forecast Trends{badge}")
-    st.caption("Next-24h Open-Meteo forecast variables.")
+    st.caption("Next-168h Open-Meteo forecast variables and ML Stacking predictions.")
 
-    _summary_metrics(df)
+    _summary_metrics(df_raw)
 
     st.markdown("**Forecast Variable Trends**")
     fc1, fc2 = st.columns(2)
@@ -392,13 +398,16 @@ def _section_future() -> None:
         ("Cloud_Cover", fc1),
         ("Wind_Speed", fc2),
     ]:
-        container.markdown(f"*{feat} ({_COL_UNITS[feat]})*")
-        _time_series(df, feat, container)
+        container.markdown(f"*{feat} ({_COL_UNITS.get(feat, '')})*")
+        _time_series(df_raw, feat, container)
 
-    _forecast_rain_timeseries(df, st)
+    if df_ml is not None and not df_ml.empty:
+        _forecast_rain_timeseries(df_ml, st)
+    else:
+        _forecast_rain_timeseries(df_raw, st)
 
     _export_expander(
-        df,
+        df_ml if df_ml is not None and not df_ml.empty else df_raw,
         "Forecast",
         f"tangerangcast_forecast_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
     )
