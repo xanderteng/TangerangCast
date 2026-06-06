@@ -68,7 +68,7 @@ def _load_concat(paths: list[str]) -> pd.DataFrame | None:
 
 
 def _parse_time_col(df: pd.DataFrame) -> pd.DataFrame:
-    for col in ["Fetch_Time", "fetch_time", "Forecast_Time", "timestamp"]:
+    for col in ["Forecast_Target_Time", "Fetch_Time", "fetch_time", "Forecast_Time", "timestamp"]:
         if col in df.columns:
             try:
                 df["_time"] = pd.to_datetime(df[col])
