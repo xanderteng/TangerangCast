@@ -427,11 +427,34 @@ def _section_bulk_export() -> None:
         tier_files = [f for f in all_files if f["tier"] == tier_label]
         if not tier_files:
             continue
-        with st.expander(f"📂 {tier_label} ({len(tier_files)} file(s))", expanded=True):
-            for f in tier_files:
-                checked = st.checkbox(f["name"], value=True, key=f"export_{f['path']}")
-                if checked:
+
+        # Sort files so newest are first
+        tier_files.sort(key=lambda x: x["name"], reverse=True)
+        max_files = len(tier_files)
+
+        with st.expander(f"📂 {tier_label} ({max_files} file(s))", expanded=True):
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                # Default to exporting the latest 10 files
+                default_val = min(10, max_files)
+                num_to_export = st.number_input(
+                    "Number of latest files to export",
+                    min_value=0,
+                    max_value=max_files,
+                    value=default_val,
+                    step=1,
+                    key=f"num_{tier_label}",
+                )
+
+            if num_to_export > 0:
+                selected_for_tier = tier_files[:num_to_export]
+                for f in selected_for_tier:
                     selected_paths.append(f["path"])
+
+                with col2:
+                    st.caption(f"**Will export {num_to_export} file(s):**")
+                    st.caption(f"From: `{selected_for_tier[-1]['name']}`")
+                    st.caption(f"To: `{selected_for_tier[0]['name']}`")
 
     st.markdown(f"**{len(selected_paths)} file(s) selected**")
 

@@ -1,0 +1,33 @@
+name: TangerangCast Continuous Monitoring
+
+on:
+  schedule:
+    # Berjalan setiap hari pada pukul 01:00 UTC (08:00 WIB)
+    - cron: '0 1 * * *'
+  workflow_dispatch: # Tombol manual trigger
+
+jobs:
+  daily-evaluation:
+    name: Evaluate 24h Model Performance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH Key
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+
+      - name: Run Evaluation Script on VPS
+        env:
+          SSH_USER: ${{ secrets.VPS_USER }}
+          SSH_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          echo "Memulai proses evaluasi harian di dalam VPS..."
+          
+          # Mengeksekusi script evaluasi langsung ke dalam container Docker di VPS
+          # Outputnya akan langsung ditarik dan ditampilkan di log GitHub Actions ini
+          ssh -i ~/.ssh/id_rsa $SSH_USER@$SSH_HOST "sudo docker exec tangerangcast-prod python src/evaluate_forecast.py"
