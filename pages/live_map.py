@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+from datetime import datetime
 
 import pandas as pd
 import streamlit as st
@@ -74,7 +75,8 @@ def _is_point_in_polygon(lat: float, lon: float, polygon: list[list[float]]) -> 
     return inside
 
 
-def _build_payload(csv_path: str, polygon: list[list[float]]) -> dict:
+@st.cache_data(show_spinner=False)
+def _build_payload(csv_path: str, polygon: list[list[float]], hour_key: str) -> dict:
     df = pd.read_csv(csv_path)
     df = df.rename(columns=_COLUMN_MAP)
 
@@ -120,7 +122,8 @@ def _build_payload(csv_path: str, polygon: list[list[float]]) -> dict:
     }
 
 
-def _build_historic_payloads(polygon: list[list[float]]) -> dict:
+@st.cache_data(show_spinner=False)
+def _build_historic_payloads(polygon: list[list[float]], hour_key: str) -> dict:
     pattern = os.path.join(_CURRENT_DATA_DIR, "*.csv")
     csv_paths = glob.glob(pattern)
     if not csv_paths:
@@ -156,7 +159,7 @@ def _build_historic_payloads(polygon: list[list[float]]) -> dict:
             if ts < cutoff:
                 continue
 
-            payload = _build_payload(path, polygon)
+            payload = _build_payload(path, polygon, hour_key)
             fetch_time = payload.get("fetch_time")
             if fetch_time:
                 times.append(fetch_time)
@@ -170,7 +173,8 @@ def _build_historic_payloads(polygon: list[list[float]]) -> dict:
     }
 
 
-def _build_forecast_payloads(polygon: list[list[float]]) -> dict:
+@st.cache_data(show_spinner=False)
+def _build_forecast_payloads(polygon: list[list[float]], hour_key: str) -> dict:
     raw_future_csv = _find_latest_csv(_FUTURE_DATA_DIR)
     forecast_csv = _find_latest_csv(_FORECAST_DATA_DIR)
 
@@ -305,8 +309,9 @@ st.sidebar.info(
 geojson_data, polygon = _load_border_polygon()
 
 csv_path = _find_latest_csv(_CURRENT_DATA_DIR)
-historic_payloads = _build_historic_payloads(polygon)
-forecast_payloads = _build_forecast_payloads(polygon)
+current_hour_key = datetime.now().strftime("%Y-%m-%d %H")
+historic_payloads = _build_historic_payloads(polygon, current_hour_key)
+forecast_payloads = _build_forecast_payloads(polygon, current_hour_key)
 
 if csv_path is None:
     st.warning(
@@ -321,5 +326,5 @@ if csv_path is None:
         forecast_payloads,
     )
 else:
-    payload = _build_payload(csv_path, polygon)
+    payload = _build_payload(csv_path, polygon, current_hour_key)
     _inject_and_render(payload, geojson_data, historic_payloads, forecast_payloads)

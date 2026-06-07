@@ -208,7 +208,8 @@ def _time_series(df: pd.DataFrame, col: str, container) -> None:
     if col not in df.columns or "_time" not in df.columns:
         return
     plot_df = df.groupby("_time")[col].mean().reset_index()
-    container.line_chart(plot_df.set_index("_time"), color=_COL_COLORS.get(col))
+    plot_df["Time"] = plot_df["_time"].dt.strftime("%b %d %H:%M")
+    container.line_chart(plot_df.set_index("Time")[col], color=_COL_COLORS.get(col))
 
 
 def _rain_bar(df: pd.DataFrame, container) -> None:
@@ -279,13 +280,13 @@ def _forecast_rain_timeseries(df: pd.DataFrame, container) -> None:
         .reset_index()
     )
     grouped["Rain Rate (%)"] = (grouped["Rain_Rate"] * 100).round(1)
+    grouped["Time"] = grouped["Hour"].dt.strftime("%b %d %H:%M")
 
     tag = "Prediction" if rain_col == "predicted_rain" else "Open-Meteo Baseline"
-    container.markdown(f"**Rain Rate Over Forecast Window (% of grid points) [{tag}]**")
-    container.line_chart(grouped.set_index("Hour")["Rain Rate (%)"], color=_CLR["rain"])
+    container.markdown(f"**Rain Metrics per Forecast Hour [{tag}]**")
 
-    container.markdown(f"**Rainy Grid Points per Forecast Hour [{tag}]**")
-    container.bar_chart(grouped.set_index("Hour")["Rainy_Points"], color=_CLR["rain"])
+    plot_df = grouped.set_index("Time")[["Rain Rate (%)", "Rainy_Points"]]
+    container.line_chart(plot_df, color=[_CLR["rain"], "#ffaa00"])
 
 
 def _to_csv(df: pd.DataFrame) -> bytes:
