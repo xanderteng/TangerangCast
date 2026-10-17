@@ -75,6 +75,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Inject dummy CARTO key for build verification
+        run: |
+          sed -i 's/__CARTO_API_KEY__/DUMMY_KEY_FOR_CI/g' assets/live_map.html
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -106,6 +110,9 @@ jobs:
 
             cd ~/TangerangCast
             git pull origin main
+
+            # Inject CARTO API key from GitHub Secret into the live map asset
+            sed -i 's/__CARTO_API_KEY__/${{ secrets.CARTO_API_KEY }}/g' assets/live_map.html
 
             # Ensure host-mapped directories are writable by container
             mkdir -p data models mlflow_data
