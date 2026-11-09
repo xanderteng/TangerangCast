@@ -86,7 +86,7 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
         )
         del sess
         gc.collect()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise RuntimeError(
             f"Failed to load or execute ONNX models sequentially. Ensure all 4 models exist in {models_dir}. Error: {e}"
         ) from e
