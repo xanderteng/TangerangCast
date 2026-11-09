@@ -129,7 +129,7 @@ def _preprocess_current_csvs(
     for p in paths:
         try:
             frames.append(pd.read_csv(p))
-        except Exception:
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, OSError):
             continue
 
     if not frames:

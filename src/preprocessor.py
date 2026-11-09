@@ -1,8 +1,9 @@
-import pandas as pd
-import numpy as np
-import os
 import glob
-from sklearn.preprocessing import StandardScaler, PowerTransformer
+import os
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import PowerTransformer, StandardScaler
 
 _SCALER = None
 _PT = None
@@ -166,5 +167,5 @@ def _cleanup_old_processed_files(folder_path: str, keep_last: int = 720) -> None
             try:
                 os.remove(f)
                 print(f"Cleaned up old processed file: {f}")
-            except Exception as e:
+            except OSError as e:
                 print(f"Failed to delete old preprocessed file {f}: {e}")

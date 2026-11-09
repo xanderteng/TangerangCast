@@ -1,11 +1,12 @@
-import json
-import requests
-import pandas as pd
-import numpy as np
-from datetime import datetime, timezone, timedelta
-import time
-import os
 import glob
+import json
+import os
+import time
+from datetime import datetime, timedelta, timezone
+
+import numpy as np
+import pandas as pd
+import requests
 
 
 class APIFetcher:
@@ -63,13 +64,11 @@ class APIFetcher:
         p1x, p1y = polygon[0]  # [lng, lat]
         for i in range(n + 1):
             p2x, p2y = polygon[i % n]
-            if lat > min(p1y, p2y):
-                if lat <= max(p1y, p2y):
-                    if lon <= max(p1x, p2x):
-                        if p1y != p2y:
-                            xinters = (lat - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                        if p1x == p2x or lon <= xinters:
-                            inside = not inside
+            if lat > min(p1y, p2y) and lat <= max(p1y, p2y) and lon <= max(p1x, p2x):
+                if p1y != p2y:
+                    xinters = (lat - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                if p1x == p2x or lon <= xinters:
+                    inside = not inside
             p1x, p1y = p2x, p2y
         return inside
 
@@ -95,7 +94,7 @@ class APIFetcher:
             except requests.exceptions.RequestException as e:
                 if attempt == max_retries - 1:
                     print(f"Failed after {max_retries} attempts. Error: {e}")
-                    raise e
+                    raise
 
                 sleep_time = 3 * (2**attempt)
                 print(
@@ -151,7 +150,7 @@ class APIFetcher:
                             }
                         )
                 time.sleep(3)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(
                     f"Skipping current batch {i // chunk_size + 1} due to persistent error: {e}"
                 )
@@ -210,7 +209,7 @@ class APIFetcher:
 
                         records.append(df_temp)
                 time.sleep(3)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(
                     f"Skipping future batch {i // chunk_size + 1} due to persistent error: {e}"
                 )
@@ -259,7 +258,7 @@ class APIFetcher:
             from src.preprocessor import preprocess_future_data
 
             preprocess_future_data(final_file, file_timestamp)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Warning: Failed to preprocess future weather forecast data: {e}")
 
         return df
@@ -273,7 +272,7 @@ class APIFetcher:
                 try:
                     os.remove(f)
                     print(f"Cleaned up old file: {f}")
-                except Exception:
+                except OSError:
                     pass
 
 

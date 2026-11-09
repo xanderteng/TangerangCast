@@ -1,15 +1,16 @@
-import os
 import glob
-import pandas as pd
-import numpy as np
+import os
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
+    classification_report,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
     roc_auc_score,
-    classification_report,
 )
 
 
@@ -283,7 +284,7 @@ def evaluate_forecast_vs_current():
             rf.write(f"  True Negatives  (Clear correctly predicted)  : {tn}\n")
             rf.write("==================================================\n")
         print(f"\n[SUCCESS] 24-hour classification report saved at: {report_path}")
-    except Exception as e:
+    except OSError as e:
         print(f"\n[ERROR] Failed to save classification report: {e}")
 
     # ==========================================
@@ -321,7 +322,7 @@ def evaluate_forecast_vs_current():
             mlflow.log_artifact(report_path)
 
         print("[SUCCESS] Metrik pemantauan berhasil dicatat di MLflow.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"[ERROR] Gagal mengirim log ke MLflow: {e}")
 
 

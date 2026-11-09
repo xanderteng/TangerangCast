@@ -1,10 +1,12 @@
-import os
 import glob
-import pandas as pd
+import os
+
 import numpy as np
-import pytest
 import onnxruntime as rt
-from src.inference import run_onnx_inference, _cleanup_old_forecast_files
+import pandas as pd
+import pytest
+
+from src.inference import _cleanup_old_forecast_files, run_onnx_inference
 
 
 # Mock class for ONNX input meta
@@ -17,9 +19,7 @@ class MockInput:
 class MockSession:
     def __init__(self, model_path, *args, **kwargs):
         self.model_path = model_path
-        if "xgb" in model_path:
-            self.inputs = [MockInput("input")]
-        elif "lgb" in model_path:
+        if "xgb" in model_path or "lgb" in model_path:
             self.inputs = [MockInput("input")]
         elif "cat" in model_path:
             self.inputs = [MockInput("features")]

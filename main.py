@@ -1,11 +1,12 @@
-import os
-import glob
-import time
 import gc
+import glob
+import os
+import time
 from datetime import datetime, timedelta
+
 from src.api_fetcher import APIFetcher
-from src.preprocessor import preprocess_future_data
 from src.inference import run_onnx_inference
+from src.preprocessor import preprocess_future_data
 
 
 def get_latest_raw_future_file():
@@ -27,14 +28,14 @@ def run_pipeline_iteration(fetch_future=True):
     print("[PIPELINE] 1. Fetching current grid weather data...")
     try:
         fetcher.fetch_current_grid()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"[ERROR] Failed to fetch current grid data: {e}")
 
     if fetch_future:
         print("[PIPELINE] 2. Fetching future grid forecast data...")
         try:
             df_future = fetcher.fetch_future_grid()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"[ERROR] Failed to fetch future grid data: {e}")
             df_future = None
 
@@ -44,7 +45,7 @@ def run_pipeline_iteration(fetch_future=True):
                 print(f"[PIPELINE] 3. Running Preprocessor on {raw_file}...")
                 try:
                     processed_file = preprocess_future_data(raw_file, timestamp)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     print(f"[ERROR] Preprocessing failed: {e}")
                     processed_file = None
 
@@ -55,7 +56,7 @@ def run_pipeline_iteration(fetch_future=True):
                     try:
                         run_onnx_inference(processed_file, timestamp)
                         print("[PIPELINE] Pipeline iteration complete!")
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         print(f"[ERROR] Inference failed: {e}")
             else:
                 print(

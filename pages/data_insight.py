@@ -62,8 +62,8 @@ def _load_concat(paths: list[str]) -> pd.DataFrame | None:
     for p in paths:
         try:
             frames.append(pd.read_csv(p))
-        except Exception:
-            pass
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, OSError):
+            continue
     return pd.concat(frames, ignore_index=True) if frames else None
 
 
@@ -79,7 +79,7 @@ def _parse_time_col(df: pd.DataFrame) -> pd.DataFrame:
             try:
                 df["_time"] = pd.to_datetime(df[col])
                 return df
-            except Exception:
+            except (ValueError, TypeError, KeyError):
                 pass
     return df
 
@@ -96,7 +96,7 @@ def _load_tier(tier: str) -> pd.DataFrame | None:
         latest = max(paths, key=os.path.getmtime)
         try:
             df = pd.read_csv(latest)
-        except Exception:
+        except (pd.errors.EmptyDataError, pd.errors.ParserError, OSError):
             return None
         df = _parse_time_col(df)
         return df
@@ -479,7 +479,7 @@ def _section_bulk_export() -> None:
             for p in selected_paths:
                 try:
                     zf.write(p, arcname=os.path.basename(p))
-                except Exception:
+                except OSError:
                     pass
         zip_buf.seek(0)
 

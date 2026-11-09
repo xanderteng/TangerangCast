@@ -64,13 +64,11 @@ def _is_point_in_polygon(lat: float, lon: float, polygon: list[list[float]]) -> 
     p1x, p1y = polygon[0]  # [lng, lat]
     for i in range(n + 1):
         p2x, p2y = polygon[i % n]
-        if lat > min(p1y, p2y):
-            if lat <= max(p1y, p2y):
-                if lon <= max(p1x, p2x):
-                    if p1y != p2y:
-                        xinters = (lat - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                    if p1x == p2x or lon <= xinters:
-                        inside = not inside
+        if lat > min(p1y, p2y) and lat <= max(p1y, p2y) and lon <= max(p1x, p2x):
+            if p1y != p2y:
+                xinters = (lat - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+            if p1x == p2x or lon <= xinters:
+                inside = not inside
         p1x, p1y = p2x, p2y
     return inside
 
@@ -140,7 +138,14 @@ def _build_historic_payloads(polygon: list[list[float]], hour_key: str) -> dict:
             if latest_ts is None or ts > latest_ts:
                 latest_ts = ts
                 break  # Files are sorted; the last one is newest
-        except Exception:
+        except (
+            pd.errors.EmptyDataError,
+            pd.errors.ParserError,
+            KeyError,
+            IndexError,
+            OSError,
+            ValueError,
+        ):
             continue
 
     if latest_ts is None:
@@ -164,7 +169,14 @@ def _build_historic_payloads(polygon: list[list[float]], hour_key: str) -> dict:
             if fetch_time:
                 times.append(fetch_time)
                 data[fetch_time] = payload
-        except Exception:
+        except (
+            pd.errors.EmptyDataError,
+            pd.errors.ParserError,
+            KeyError,
+            IndexError,
+            OSError,
+            ValueError,
+        ):
             pass
 
     return {

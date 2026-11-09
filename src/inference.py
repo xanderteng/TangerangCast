@@ -1,9 +1,10 @@
-import os
+import gc
 import glob
-import pandas as pd
+import os
+
 import numpy as np
 import onnxruntime as rt
-import gc
+import pandas as pd
 
 
 def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
@@ -85,10 +86,10 @@ def run_onnx_inference(processed_file_path: str, file_timestamp: str) -> str:
         )
         del sess
         gc.collect()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise RuntimeError(
             f"Failed to load or execute ONNX models sequentially. Ensure all 4 models exist in {models_dir}. Error: {e}"
-        )
+        ) from e
 
     # Best stacking threshold optimized in Modelling.ipynb is 0.400
     threshold = 0.400
@@ -131,5 +132,5 @@ def _cleanup_old_forecast_files(folder_path: str, keep_last: int = 720) -> None:
             try:
                 os.remove(f)
                 print(f"Cleaned up old forecast file: {f}")
-            except Exception as e:
+            except OSError as e:
                 print(f"Failed to delete old forecast file {f}: {e}")

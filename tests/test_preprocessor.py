@@ -1,11 +1,13 @@
-import os
 import glob
-import pandas as pd
+import os
+
 import numpy as np
+import pandas as pd
 import pytest
+from sklearn.preprocessing import PowerTransformer, StandardScaler
+
 import src.preprocessor
-from src.preprocessor import preprocess_future_data, _cleanup_old_processed_files
-from sklearn.preprocessing import StandardScaler, PowerTransformer
+from src.preprocessor import _cleanup_old_processed_files, preprocess_future_data
 
 
 @pytest.fixture
